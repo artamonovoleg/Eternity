@@ -29,14 +29,8 @@ set(INCLUDES    vendor/glfw/include
 
 set(SRCS    vendor/stb_image/stb_image.cpp
             Sandbox/main.cpp
-            Engine/Core/Window.cpp
-            Engine/Platform/Linux/LinuxWindow.cpp
-            Engine/Graphics/GraphicsContext.cpp
-            Engine/Graphics/Renderer.cpp
-            Engine/Graphics/RendererCommand.cpp
-            Engine/Graphics/RendererAPI.cpp
-            Engine/Platform/Vulkan/VkRendererAPI.cpp
-            Engine/Platform/Vulkan/VkDebugHelper.cpp Engine/Platform/Vulkan/VkGraphicContext.cpp Engine/Platform/Vulkan/VkGraphicContext.hpp)
+            Engine/Platform/Vulkan/VkDebugHelper.cpp
+            Sandbox/VkRenderer.cpp)
 
 include_directories(${INCLUDES})
 

@@ -1,11 +1,11 @@
-#include <vector>
 #include <vulkan/vulkan.h>
+#include <vector>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include "Assert.hpp"
 #include "Log.hpp"
 #include "VkDebugHelper.hpp"
-#include "VkRendererAPI.hpp"
+#include "VkRenderer.hpp"
 
 int main()
 {
@@ -16,25 +16,25 @@ int main()
     GLFWwindow* window = glfwCreateWindow(width, height, "Eternity", nullptr, nullptr);
     glfwMakeContextCurrent(window);
 
-    std::shared_ptr<Eternity::VkRendererAPI> r = std::make_shared<Eternity::VkRendererAPI>();
+    Eternity::VkRenderer r;
 
     VkSurfaceKHR surface = VK_NULL_HANDLE;
     uint32_t surfaceWidth;
     uint32_t surfaceHeight;
-    VkResult result = glfwCreateWindowSurface(r->GetVulkanInstance(), window, nullptr, &surface);
+    VkResult result = glfwCreateWindowSurface(r.GetVulkanInstance(), window, nullptr, &surface);
     VkDebugHelper::CheckResult(result);
 
     // init OsSpecificSurface
     {
         VkBool32 WSI_SUPPORTED = false;
-        vkGetPhysicalDeviceSurfaceSupportKHR(r->GetVulkanPhysicalDevice(), r->GetVulkanGraphicsFamilyIndex(), surface, &WSI_SUPPORTED);
+        vkGetPhysicalDeviceSurfaceSupportKHR(r.GetVulkanPhysicalDevice(), r.GetVulkanGraphicsFamilyIndex(), surface, &WSI_SUPPORTED);
         ET_CORE_ASSERT(WSI_SUPPORTED, "WSI is not supported");
     }
     // init surface
     VkSurfaceFormatKHR surfaceFormat{};
     VkSurfaceCapabilitiesKHR surfaceCapabilities{};
     {
-        auto gpu = r->GetVulkanPhysicalDevice();
+        auto gpu = r.GetVulkanPhysicalDevice();
         vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpu, surface, &surfaceCapabilities);
 
         uint32_t formatCount = 0;
@@ -71,9 +71,9 @@ int main()
         VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
         {
             uint32_t presentModeCount = 0;
-            vkGetPhysicalDeviceSurfacePresentModesKHR(r->GetVulkanPhysicalDevice(), surface, &presentModeCount, nullptr);
+            vkGetPhysicalDeviceSurfacePresentModesKHR(r.GetVulkanPhysicalDevice(), surface, &presentModeCount, nullptr);
             std::vector<VkPresentModeKHR> presentModeList(presentModeCount);
-            vkGetPhysicalDeviceSurfacePresentModesKHR(r->GetVulkanPhysicalDevice(), surface, &presentModeCount, presentModeList.data());
+            vkGetPhysicalDeviceSurfacePresentModesKHR(r.GetVulkanPhysicalDevice(), surface, &presentModeCount, presentModeList.data());
             for (auto m : presentModeList)
             {
                 if (m == VK_PRESENT_MODE_MAILBOX_KHR)
@@ -100,8 +100,8 @@ int main()
         swapchainCreateInfo.clipped                 = VK_TRUE;
         swapchainCreateInfo.oldSwapchain            = VK_NULL_HANDLE;
 
-        VkDebugHelper::CheckResult(vkCreateSwapchainKHR(r->GetVulkanDevice(), &swapchainCreateInfo, nullptr, &swapchain));
-        VkDebugHelper::CheckResult(vkGetSwapchainImagesKHR(r->GetVulkanDevice(), swapchain, &swapchainImageCount, nullptr));
+        VkDebugHelper::CheckResult(vkCreateSwapchainKHR(r.GetVulkanDevice(), &swapchainCreateInfo, nullptr, &swapchain));
+        VkDebugHelper::CheckResult(vkGetSwapchainImagesKHR(r.GetVulkanDevice(), swapchain, &swapchainImageCount, nullptr));
     }
 
     while (!glfwWindowShouldClose(window))
@@ -111,10 +111,10 @@ int main()
 
     // deinit swapchain
     {
-        vkDestroySwapchainKHR(r->GetVulkanDevice(), swapchain, nullptr);
+        vkDestroySwapchainKHR(r.GetVulkanDevice(), swapchain, nullptr);
     }
 
-    vkDestroySurfaceKHR(r->GetVulkanInstance(), surface, nullptr);
+    vkDestroySurfaceKHR(r.GetVulkanInstance(), surface, nullptr);
     glfwTerminate();
     return VK_SUCCESS;
 }

@@ -95,8 +95,9 @@ namespace VkDebugHelper
         return VK_FALSE;
     }
 
-    VkDebugReportCallbackEXT    debugReport = VK_NULL_HANDLE;
     VkDebugReportCallbackCreateInfoEXT debugReportCallbackCreateInfo{};
+    VkDebugReportCallbackEXT           debugReport = VK_NULL_HANDLE;
+
     void SetupDebug(std::vector<const char*>& instanceLayers, std::vector<const char*>& instanceExtensions, std::vector<const char*>& deviceLayers)
     {
         debugReportCallbackCreateInfo.sType         = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT;
