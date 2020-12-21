@@ -19,3 +19,6 @@
 #endif
 
 #define ET_EXPAND_MACRO(x) x
+
+#include "Log.hpp"
+#include "Assert.hpp"

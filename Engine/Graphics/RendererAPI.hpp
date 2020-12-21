@@ -18,6 +18,9 @@ namespace Eternity
         private:
             static RendererAPI::API s_API;
         public:
+            RendererAPI() = default;
+            virtual ~RendererAPI() = default;
+            RendererAPI::API GetAPI() { return s_API; }
             static std::shared_ptr<RendererAPI> Create();
     };
 }

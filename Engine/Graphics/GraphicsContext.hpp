@@ -3,9 +3,17 @@
 //
 
 #pragma once
+#include <memory>
 
-class GraphicsContext
+namespace Eternity
 {
-    private:
-    public:
-};
+    class GraphicsContext
+    {
+        private:
+        public:
+            GraphicsContext() = default;
+            virtual ~GraphicsContext() = default;
+
+            static std::shared_ptr<GraphicsContext> Create();
+    };
+}

@@ -13,7 +13,7 @@ namespace Eternity
     {
         switch (s_API)
         {
-//            case RendererAPI::API::Vulkan: return std::shared_ptr<VkRendererAPI>();
+            case RendererAPI::API::Vulkan: return std::make_shared<VkRendererAPI>();
         }
     }
 }

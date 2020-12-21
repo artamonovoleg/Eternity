@@ -3,9 +3,15 @@
 //
 
 #pragma once
+#include "RendererAPI.hpp"
 
-class Renderer
+namespace Eternity
 {
-    private:
-    public:
-};
+    class Renderer
+    {
+        private:
+            static std::shared_ptr<RendererAPI> s_RendererAPI;
+        public:
+            static RendererAPI::API GetAPI() { return s_RendererAPI->GetAPI(); }
+    };
+}
