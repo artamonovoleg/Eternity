@@ -29,8 +29,8 @@ set(INCLUDES    vendor/glfw/include
 
 set(SRCS    vendor/stb_image/stb_image.cpp
             Sandbox/main.cpp
-            Engine/Platform/Vulkan/VkDebugHelper.cpp
-            Sandbox/VkRenderer.cpp)
+            Engine/Platform/Vulkan/VulkanDebug.cpp
+            Sandbox/VulkanRenderer.cpp Sandbox/VulkanRenderer.cpp)
 
 include_directories(${INCLUDES})
 
@@ -39,7 +39,7 @@ add_executable(${PROJECT_NAME} ${SRCS})
 add_definitions(
                 -DET_DEBUG
                 -DET_ENABLE_VULKAN_DEBUG
-#                -DET_RUNTIME_VULKAN_DEBUG
+                -DET_RUNTIME_VULKAN_DEBUG
                 )
 
 link_directories(   ${INCLUDES}

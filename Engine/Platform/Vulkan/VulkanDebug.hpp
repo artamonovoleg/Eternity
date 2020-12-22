@@ -7,7 +7,7 @@
 #include <vector>
 #include <vulkan/vulkan.h>
 
-namespace VkDebugHelper
+namespace VulkanDebug
 {
     void CheckResult(VkResult result, const std::string& msg = "");
     void SetupDebug(std::vector<const char*>& instanceLayers, std::vector<const char*>& instanceExtensions, std::vector<const char*>& deviceLayers);

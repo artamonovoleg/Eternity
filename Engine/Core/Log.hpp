@@ -3,6 +3,7 @@
 //
 
 #pragma once
+#include "Base.hpp"
 #include "Logger.hpp"
 
 #if ET_DEBUG

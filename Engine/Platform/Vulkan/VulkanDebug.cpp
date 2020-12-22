@@ -2,10 +2,10 @@
 // Created by artamonovoleg on 20.12.2020.
 //
 
-#include "VkDebugHelper.hpp"
+#include "VulkanDebug.hpp"
 #include "Assert.hpp"
 
-namespace VkDebugHelper
+namespace VulkanDebug
 {
 #if ET_DEBUG
     void CheckResult(VkResult result, const std::string& msg)

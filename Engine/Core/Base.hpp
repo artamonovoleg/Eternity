@@ -4,7 +4,7 @@
 
 #pragma once
 
-#ifdef ET_DEBUG
+#if ET_DEBUG
 #if defined(ET_PLATFORM_WINDOWS)
 		#define ET_DEBUGBREAK() __debugbreak()
 	#elif defined(ET_PLATFORM_LINUX)

@@ -1,20 +1,20 @@
 //
-// Created by artamonovoleg on 20.12.2020.
+// Created by artamonovoleg on 21.12.2020.
 //
 
 #pragma once
 #include <vector>
 #include <vulkan/vulkan.h>
-#include "RendererAPI.hpp"
 
 namespace Eternity
 {
-    class VkRendererAPI : public RendererAPI
+    class VulkanRenderer
     {
         private:
             VkInstance                  m_Instance  = VK_NULL_HANDLE;
             VkPhysicalDevice            m_GPU       = VK_NULL_HANDLE;
             VkPhysicalDeviceProperties  m_GPUProperties{};
+            VkPhysicalDeviceMemoryProperties m_GPUMemoryProperties{};
             VkDevice                    m_Device    = VK_NULL_HANDLE;
             VkQueue                     m_Queue     = VK_NULL_HANDLE;
             uint32_t                    m_GraphicsFamilyIndex = 0;
@@ -32,9 +32,10 @@ namespace Eternity
             void DeinitDevice();
 
             void SetupLayersAndExtensions();
+
         public:
-            VkRendererAPI();
-            ~VkRendererAPI() override;
+            VulkanRenderer();
+            ~VulkanRenderer();
 
             [[nodiscard]] VkInstance                    GetVulkanInstance()                 const;
             [[nodiscard]] VkPhysicalDevice              GetVulkanPhysicalDevice()           const;
@@ -42,5 +43,6 @@ namespace Eternity
             [[nodiscard]] VkQueue                       GetVulkanQueue()                    const;
             [[nodiscard]] uint32_t                      GetVulkanGraphicsFamilyIndex()      const;
             [[nodiscard]] const VkPhysicalDeviceProperties&   GetVulkanPhysicalDeviceProperties() const;
+            [[nodiscard]] const VkPhysicalDeviceMemoryProperties& GetVulkanPhysicalDeviceMemoryProperties() const;
     };
 }

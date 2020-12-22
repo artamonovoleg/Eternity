@@ -3,29 +3,29 @@
 //
 
 #include <GLFW/glfw3.h>
-#include "VkRenderer.hpp"
-#include "VkDebugHelper.hpp"
+#include "VulkanRenderer.hpp"
+#include "VulkanDebug.hpp"
 #include "Base.hpp"
 
 namespace Eternity
 {
-    VkRenderer::VkRenderer()
+    VulkanRenderer::VulkanRenderer()
     {
-        VkDebugHelper::SetupDebug(m_InstanceLayers, m_InstanceExtensions, m_DeviceLayers);
+        VulkanDebug::SetupDebug(m_InstanceLayers, m_InstanceExtensions, m_DeviceLayers);
         SetupLayersAndExtensions();
         InitInstance();
-        VkDebugHelper::InitDebug(m_Instance);
+        VulkanDebug::InitDebug(m_Instance);
         InitDevice();
     }
 
-    VkRenderer::~VkRenderer()
+    VulkanRenderer::~VulkanRenderer()
     {
         DeinitDevice();
-        VkDebugHelper::DeinitDebug(m_Instance);
+        VulkanDebug::DeinitDebug(m_Instance);
         DeinitInstance();
     }
 
-    void VkRenderer::InitInstance()
+    void VulkanRenderer::InitInstance()
     {
         // TODO: think about move it from here its not good idea.
         VkApplicationInfo applicationInfo{};
@@ -42,21 +42,21 @@ namespace Eternity
         instanceCreateInfo.ppEnabledLayerNames = m_InstanceLayers.data();
         instanceCreateInfo.enabledExtensionCount = m_InstanceExtensions.size();
         instanceCreateInfo.ppEnabledExtensionNames = m_InstanceExtensions.data();
-        instanceCreateInfo.pNext = VkDebugHelper::GetDebugReportCallbackInfo();
+        instanceCreateInfo.pNext = VulkanDebug::GetDebugReportCallbackInfo();
 
         // TODO: Read about other parameters of this structure
         VkResult result = vkCreateInstance(&instanceCreateInfo, nullptr, &m_Instance);
 
-        VkDebugHelper::CheckResult(result);
+        VulkanDebug::CheckResult(result);
     }
 
-    void VkRenderer::DeinitInstance()
+    void VulkanRenderer::DeinitInstance()
     {
         vkDestroyInstance(m_Instance, nullptr);
     }
 
     // needed to create surface
-    void VkRenderer::SetupLayersAndExtensions()
+    void VulkanRenderer::SetupLayersAndExtensions()
     {
         uint32_t extensionsCount = 0;
         const char **instanceExtensionsBuffer = glfwGetRequiredInstanceExtensions(&extensionsCount);
@@ -68,7 +68,7 @@ namespace Eternity
 
     // Create physical and logical device
     // find gpu and create logical device to manipulate this
-    void VkRenderer::InitDevice()
+    void VulkanRenderer::InitDevice()
     {
         // TODO: Generally its not good idea to store it in one method. its better to decompose it
         {
@@ -81,6 +81,7 @@ namespace Eternity
             // TODO: select the best, not take first gpu from list
             m_GPU = gpuList.at(0);
             vkGetPhysicalDeviceProperties(m_GPU, &m_GPUProperties);
+            vkGetPhysicalDeviceMemoryProperties(m_GPU, &m_GPUMemoryProperties);
         }
         {
             // describe queue families that we will use
@@ -119,23 +120,24 @@ namespace Eternity
         deviceCreateInfo.ppEnabledExtensionNames = m_DeviceExtensions.data();
 
         VkResult result = vkCreateDevice(m_GPU, &deviceCreateInfo, nullptr, &m_Device);
-        VkDebugHelper::CheckResult(result);
+        VulkanDebug::CheckResult(result);
 
         // This is very minimal and simple setup
         // TODO: Read about all properties of all structures to create it more advanced way
         vkGetDeviceQueue(m_Device, m_GraphicsFamilyIndex, 0, &m_Queue);
     }
 
-    void VkRenderer::DeinitDevice()
+    void VulkanRenderer::DeinitDevice()
     {
         vkDestroyDevice(m_Device, nullptr);
     }
 
 
-    VkInstance                    VkRenderer::GetVulkanInstance()                 const { return m_Instance; }
-    VkPhysicalDevice              VkRenderer::GetVulkanPhysicalDevice()           const { return m_GPU; };
-    VkDevice                      VkRenderer::GetVulkanDevice()                   const { return m_Device; }
-    VkQueue                       VkRenderer::GetVulkanQueue()                    const { return m_Queue; }
-    uint32_t                      VkRenderer::GetVulkanGraphicsFamilyIndex()      const { return m_GraphicsFamilyIndex; }
-    const VkPhysicalDeviceProperties&   VkRenderer::GetVulkanPhysicalDeviceProperties() const { return m_GPUProperties; }
+    VkInstance                    VulkanRenderer::GetVulkanInstance()                 const { return m_Instance; }
+    VkPhysicalDevice              VulkanRenderer::GetVulkanPhysicalDevice()           const { return m_GPU; };
+    VkDevice                      VulkanRenderer::GetVulkanDevice()                   const { return m_Device; }
+    VkQueue                       VulkanRenderer::GetVulkanQueue()                    const { return m_Queue; }
+    uint32_t                      VulkanRenderer::GetVulkanGraphicsFamilyIndex()      const { return m_GraphicsFamilyIndex; }
+    const VkPhysicalDeviceProperties&   VulkanRenderer::GetVulkanPhysicalDeviceProperties() const { return m_GPUProperties; }
+    const VkPhysicalDeviceMemoryProperties &VulkanRenderer::GetVulkanPhysicalDeviceMemoryProperties() const { return m_GPUMemoryProperties; }
 }
