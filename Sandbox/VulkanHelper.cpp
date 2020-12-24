@@ -10,13 +10,13 @@ namespace VulkanHelper
     const bool enableValidationLayers = false;
 #endif
 
-    std::vector<const char*> GetRequiredExtensions()
+    std::vector<const char *> GetRequiredExtensions()
     {
         uint32_t glfwExtensionCount = 0;
-        const char** glfwExtensions;
+        const char **glfwExtensions;
         glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
-        std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
+        std::vector<const char *> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
 
         if (enableValidationLayers)
             extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
@@ -24,14 +24,14 @@ namespace VulkanHelper
         return extensions;
     }
 
-    std::vector<const char*> GetInstanceLayers()
+    std::vector<const char *> GetInstanceLayers()
     {
-        const std::vector<const char*> validationLayers = { "VK_LAYER_KHRONOS_validation" };
+        const std::vector<const char *> validationLayers = {"VK_LAYER_KHRONOS_validation"};
 
         if (enableValidationLayers)
             return validationLayers;
         else
-            return std::vector<const char*>();
+            return std::vector<const char *>();
     }
 
 #ifdef ET_DEBUG
@@ -42,39 +42,50 @@ namespace VulkanHelper
             const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
             void* pUserData)
     {
-        if (messageSeverity & VK_DEBUG_REPORT_INFORMATION_BIT_EXT)
-            ET_CORE_INFO(pCallbackData->pMessage);
-        if (messageSeverity & VK_DEBUG_REPORT_WARNING_BIT_EXT)
-            ET_CORE_WARN(pCallbackData->pMessage);
-        if (messageSeverity & VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT)
-            ET_CORE_PERFORMANCE(pCallbackData->pMessage);
-        if (messageSeverity & VK_DEBUG_REPORT_ERROR_BIT_EXT)
-            ET_CORE_ERROR(pCallbackData->pMessage);
-        if (messageSeverity & VK_DEBUG_REPORT_DEBUG_BIT_EXT)
+
+        if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT)
             ET_CORE_TRACE(pCallbackData->pMessage);
+        else
+        if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
+            ET_CORE_WARN(pCallbackData->pMessage);
+        else
+        if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
+            ET_CORE_ERROR(pCallbackData->pMessage);
         return VK_FALSE;
     }
 
     VkDebugUtilsMessengerEXT debugMessenger;
+    VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo;
 
-    void SetupDebugMessenger()
+    void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo)
     {
-        VkDebugUtilsMessengerCreateInfoEXT createInfo{};
+        createInfo = {};
         createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
         createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
         createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
         createInfo.pfnUserCallback = DebugCallback;
-        createInfo.pUserData = nullptr; // Optional
+    }
+
+    VkDebugUtilsMessengerCreateInfoEXT* GetDebugCreateInfo()
+    {
+        PopulateDebugMessengerCreateInfo(debugCreateInfo);
+        return &debugCreateInfo;
     }
 
     VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger)
     {
         auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
-        if (func != nullptr) {
+        if (func != nullptr)
             return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
-        } else {
+        else
             return VK_ERROR_EXTENSION_NOT_PRESENT;
-        }
+    }
+
+    void CreateDebugMessenger(const VkInstance &instance)
+    {
+        PopulateDebugMessengerCreateInfo(debugCreateInfo);
+
+        ET_CORE_ASSERT(CreateDebugUtilsMessengerEXT(instance, &debugCreateInfo, nullptr, &debugMessenger) == VK_SUCCESS, "Debug extensions setup");
     }
 
     void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator)
@@ -85,9 +96,13 @@ namespace VulkanHelper
         }
     }
 
+    void DestroyDebugMessenger(const VkInstance &instance)
+    {
+        DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
+    }
 #else
-    void SetupDebugMessenger() {}
-    VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {}
-    void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {}
+    VkDebugUtilsMessengerCreateInfoEXT* GetDebugCreateInfo() { return nullptr; }
+    void CreateDebugMessenger(const VkInstance &instance) {}
+    void DestroyDebugMessenger(const VkInstance &instance) {}
 #endif
 }

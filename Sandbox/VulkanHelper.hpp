@@ -11,7 +11,8 @@ namespace VulkanHelper
 {
     std::vector<const char*> GetRequiredExtensions();
     std::vector<const char*> GetInstanceLayers();
-    void SetupDebugMessenger();
-    VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger);
-    void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
+
+    VkDebugUtilsMessengerCreateInfoEXT* GetDebugCreateInfo();
+    void CreateDebugMessenger(const VkInstance& instance);
+    void DestroyDebugMessenger(const VkInstance& instance);
 };

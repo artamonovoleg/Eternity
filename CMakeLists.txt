@@ -24,7 +24,8 @@ set(INCLUDES    ${VENDOR}
                 Engine/Platform/Vulkan)
 
 set(SRCS    vendor/stb_image/stb_image.cpp
-            Sandbox/main.cpp Sandbox/VulkanHelper.cpp Sandbox/VulkanHelper.hpp)
+            Sandbox/main.cpp
+            Sandbox/VulkanHelper.cpp)
 
 include_directories(${INCLUDES})
 add_executable(${PROJECT_NAME} ${SRCS})

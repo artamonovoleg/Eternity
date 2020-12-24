@@ -9,11 +9,12 @@
 #include <cstring>
 #include <cstdlib>
 #include <cstdint>
-#include <optional>
-#include <set>
 
 #include "Base.hpp"
 #include "VulkanHelper.hpp"
+
+
+
 
 namespace Eternity
 {
@@ -38,14 +39,18 @@ namespace Eternity
     VulkanRenderer::VulkanRenderer()
     {
         CreateInstance();
-        VulkanHelper::SetupDebugMessenger();
+        VulkanHelper::CreateDebugMessenger(m_Instance);
         PickPhysicalDevice();
     }
 
     VulkanRenderer::~VulkanRenderer()
     {
+        VulkanHelper::DestroyDebugMessenger(m_Instance);
         DestroyInstance();
     }
+
+
+
 
     void VulkanRenderer::CreateInstance()
     {
@@ -68,7 +73,7 @@ namespace Eternity
         auto layers = VulkanHelper::GetInstanceLayers();
         instanceCreateInfo.enabledLayerCount        = layers.size();
         instanceCreateInfo.ppEnabledLayerNames      = layers.data();
-
+        instanceCreateInfo.pNext                    = VulkanHelper::GetDebugCreateInfo();
         ET_CORE_ASSERT(vkCreateInstance(&instanceCreateInfo, nullptr, &m_Instance) == VK_SUCCESS, "Instance creation");
     }
 
