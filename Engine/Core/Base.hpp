@@ -18,7 +18,8 @@
 #define ET_DEBUGBREAK()
 #endif
 
-#define ET_EXPAND_MACRO(x) x
+#define ET_EXPAND_MACRO(X) X
+#define ET_STRINGIFY_MACRO(X) #X
 
 #include "Log.hpp"
 #include "Assert.hpp"

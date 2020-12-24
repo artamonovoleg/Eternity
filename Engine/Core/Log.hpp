@@ -6,7 +6,7 @@
 #include "Base.hpp"
 #include "Logger.hpp"
 
-#if ET_DEBUG
+#ifdef ET_DEBUG
 #define ET_CORE_PERFORMANCE(...)    ::Eternity::Logger::Performance(__VA_ARGS__)
 #define ET_CORE_TRACE(...)          ::Eternity::Logger::Trace(__VA_ARGS__)
 #define ET_CORE_INFO(...)           ::Eternity::Logger::Info(__VA_ARGS__)

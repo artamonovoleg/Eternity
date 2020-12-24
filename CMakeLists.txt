@@ -5,62 +5,36 @@ set(PROJECT_NAME Eternity)
 
 project(${PROJECT_NAME})
 
-add_compile_options(
-        -g
-        -Wall
-)
-
+# GLFW build setup
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
 set(GLFW_INCLUDE_DIR vendor/glfw/include)
+set(GLM_INCLUDE_DIR vendor/glm/)
+set(STB_INCLUDE_DIR vendor/stb_image/)
 
+set(VENDOR ${GLFW_INCLUDE_DIR} ${GLM_INCLUDE_DIR} ${STB_INCLUDE_DIR})
 add_subdirectory(vendor)
 
-set(INCLUDES    vendor/glfw/include
-                vendor/glm/
-                vendor/stb_image/
-                ./
+set(INCLUDES    ${VENDOR}
                 Engine/Core
                 Engine/Graphics
                 Engine/Utils
                 Engine/Platform/Vulkan)
 
 set(SRCS    vendor/stb_image/stb_image.cpp
-            Sandbox/main.cpp
-            Engine/Platform/Vulkan/VulkanDebug.cpp
-            Sandbox/VulkanRenderer.cpp Sandbox/VulkanRenderer.cpp)
+            Sandbox/main.cpp Sandbox/VulkanHelper.cpp Sandbox/VulkanHelper.hpp)
 
 include_directories(${INCLUDES})
-
 add_executable(${PROJECT_NAME} ${SRCS})
 
-add_definitions(
-                -DET_DEBUG
-                -DET_ENABLE_VULKAN_DEBUG
-                -DET_RUNTIME_VULKAN_DEBUG
-                )
+# Debug options
+add_compile_definitions(ET_DEBUG)
 
-link_directories(   ${INCLUDES}
-                    ${CMAKE_CURRENT_SOURCE_DIR}/vendor/glfw
-                    ${CMAKE_CURRENT_SOURCE_DIR}/vendor/glfw/src)
-
-if    (WIN32)
-    target_link_libraries(${PROJECT_NAME} glfw glu32 opengl32)
-elseif(APPLE)
-    find_library(COCOA_Framework Cocoa)
-    find_library(OpenGL_Framework OpenGL)
-    find_library(IOKit_Framework IOKit)
-    find_library(CoreVideo_Framework CoreVideo)
-
-    target_link_libraries(${PROJECT_NAME}
-            glfw
-            ${COCOA_Framework} ${OpenGL_Framework}
-            ${IOKit_Framework} ${CoreVideo_Framework})
+if (WIN32)
+    target_link_libraries(${PROJECT_NAME} glfw)
 elseif(UNIX AND NOT APPLE)
-    add_definitions(-DET_PLATFORM_LINUX -DET_DEBUG)
-    target_link_libraries(${PROJECT_NAME}
-            glfw
-            vulkan X11 pthread dl)
+    add_compile_definitions(ET_PLATFORM_LINUX)
+    target_link_libraries(${PROJECT_NAME} glfw vulkan X11 pthread dl)
 endif()
