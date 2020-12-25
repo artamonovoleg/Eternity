@@ -246,7 +246,7 @@ namespace Eternity
         instanceBuilder.RequireAPIVersion(1, 0, 5);
         instanceBuilder.RequestDebug();
         instanceBuilder.Build();
-        auto instance = instanceBuilder.Get();
+        instance = instanceBuilder.Get();
         m_Instance  = instance.instance;
     }
 
