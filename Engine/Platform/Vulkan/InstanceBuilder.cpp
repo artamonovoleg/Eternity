@@ -140,7 +140,7 @@ namespace vkb
         m_Result.layers         = m_InstanceLayers;
     }
 
-    Instance InstanceBuilder::Get()
+    Instance InstanceBuilder::Get() const
     {
         return m_Result;
     }

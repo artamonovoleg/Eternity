@@ -50,7 +50,8 @@ namespace vkb
             void RequireAPIVersion(uint32_t version);
             void RequestDebug();
 
-            void Build();
-            Instance Get();
+            void        Build();
+            [[nodiscard]]
+            Instance    Get() const;
     };
 }

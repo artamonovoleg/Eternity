@@ -9,20 +9,21 @@ namespace vkb
 {
     struct PhysicalDevice
     {
-        VkPhysicalDevice physicalDevice;
+        VkPhysicalDevice        physicalDevice;
     };
 
     class PhysicalDeviceSelector
     {
         private:
-            vkb::Instance           m_Instance          = {};
-            vkb::PhysicalDevice     m_PhysicalDevice    = {};
+            const vkb::Instance&            m_Instance          = {};
+            vkb::PhysicalDevice             m_PhysicalDevice    = {};
         public:
-            explicit PhysicalDeviceSelector(vkb::Instance& instance)
+            explicit PhysicalDeviceSelector(const vkb::Instance& instance)
                 : m_Instance(instance) {}
             ~PhysicalDeviceSelector() = default;
 
-            void                Select();
-            vkb::PhysicalDevice Get();
+            void                    Select();
+            [[nodiscard]]
+            vkb::PhysicalDevice     Get() const;
     };
 }

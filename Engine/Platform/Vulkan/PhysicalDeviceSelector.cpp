@@ -23,7 +23,7 @@ namespace vkb
         m_PhysicalDevice.physicalDevice = devices[0];
     }
 
-    vkb::PhysicalDevice PhysicalDeviceSelector::Get()
+    vkb::PhysicalDevice PhysicalDeviceSelector::Get() const
     {
         return m_PhysicalDevice;
     }

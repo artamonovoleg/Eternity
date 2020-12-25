@@ -27,7 +27,7 @@ set(SRCS    vendor/stb_image/stb_image.cpp
             Sandbox/main.cpp
             Engine/Platform/Vulkan/InstanceBuilder.cpp
             Engine/Platform/Vulkan/VulkanCheck.cpp
-            Engine/Platform/Vulkan/PhysicalDeviceSelector.cpp)
+            Engine/Platform/Vulkan/PhysicalDeviceSelector.cpp Engine/Platform/Vulkan/DeviceBuilder.cpp Engine/Platform/Vulkan/DeviceBuilder.hpp Engine/Platform/Vulkan/VulkanWrapper.hpp)
 
 include_directories(${INCLUDES})
 add_executable(${PROJECT_NAME} ${SRCS})

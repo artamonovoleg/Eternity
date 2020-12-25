@@ -7,8 +7,7 @@
 #include <istream>
 
 #include "Base.hpp"
-#include "InstanceBuilder.hpp"
-#include "PhysicalDeviceSelector.hpp"
+#include "VulkanWrapper.hpp"
 
 namespace Eternity
 {
@@ -140,7 +139,7 @@ namespace Eternity
             VkPhysicalDevice    m_PhysicalDevice    = VK_NULL_HANDLE;
             vkb::PhysicalDevice physicalDevice      = {};
             VkDevice            m_Device            = VK_NULL_HANDLE;
-
+            vkb::Device         device              = {};
             VkQueue             m_GraphicsQueue     = VK_NULL_HANDLE;
             VkQueue             m_PresentQueue      = VK_NULL_HANDLE;
 
@@ -173,7 +172,6 @@ namespace Eternity
             void DestroySurface();
 
             VulkanRenderer::QueueFamilyIndices FindQueueFamilies(const VkPhysicalDevice& device);
-            bool IsDeviceSuitable(const VkPhysicalDevice& device);
             void FindPhysicalDevice();
 
             void CreateLogicalDevice();
@@ -292,23 +290,6 @@ namespace Eternity
         return indices;
     }
 
-    // return true if both graphics and present queues is available
-    bool VulkanRenderer::IsDeviceSuitable(const VkPhysicalDevice& device)
-    {
-        QueueFamilyIndices indices = FindQueueFamilies(device);
-
-        bool extensionsSupported = CheckDeviceExtensionSupport(device);
-
-        bool swapChainAdequate = false;
-        if (extensionsSupported)
-        {
-            SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(device, m_Surface);
-            swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
-        }
-
-        return indices.IsComplete() && extensionsSupported && swapChainAdequate;
-    }
-
     // look for gpu, check founded suitability
     void VulkanRenderer::FindPhysicalDevice()
     {
@@ -323,37 +304,43 @@ namespace Eternity
     void VulkanRenderer::CreateLogicalDevice()
     {
         QueueFamilyIndices indices = FindQueueFamilies(m_PhysicalDevice);
-        ET_CORE_ASSERT(indices.IsComplete(), "Indices are not complete");
+//        ET_CORE_ASSERT(indices.IsComplete(), "Indices are not complete");
+//
+//        std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+//        std::set<uint32_t> uniqueQueueFamilies = { indices.graphicsFamily.value(), indices.graphicsFamily.value() };
+//
+//        float queuePriority = 1.0f;
+//        for (uint32_t queueFamily : uniqueQueueFamilies)
+//        {
+//            VkDeviceQueueCreateInfo queueCreateInfo{};
+//            queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+//            queueCreateInfo.queueFamilyIndex = queueFamily;
+//            queueCreateInfo.queueCount = 1;
+//            queueCreateInfo.pQueuePriorities = &queuePriority;
+//            queueCreateInfos.push_back(queueCreateInfo);
+//        }
+//
+//        // now dont need any features
+//        VkPhysicalDeviceFeatures deviceFeatures{};
+//
+//        VkDeviceCreateInfo deviceCreateInfo{};
+//        deviceCreateInfo.sType                      = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+//        deviceCreateInfo.queueCreateInfoCount       = static_cast<uint32_t>(queueCreateInfos.size());
+//        deviceCreateInfo.pQueueCreateInfos          = queueCreateInfos.data();
+//        deviceCreateInfo.pEnabledFeatures           = &deviceFeatures;
+//        deviceCreateInfo.enabledExtensionCount      = static_cast<uint32_t>(deviceExtensions.size()); // declared on top of file
+//        deviceCreateInfo.ppEnabledExtensionNames    = deviceExtensions.data();
+//        deviceCreateInfo.enabledLayerCount          = static_cast<uint32_t>(instance.layers.size());
+//        deviceCreateInfo.ppEnabledLayerNames        = instance.layers.data();
+//
+//        ET_CORE_ASSERT(vkCreateDevice(m_PhysicalDevice, &deviceCreateInfo, nullptr, &m_Device) == VK_SUCCESS, "Create device");
 
-        std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-        std::set<uint32_t> uniqueQueueFamilies = { indices.graphicsFamily.value(), indices.graphicsFamily.value() };
+        vkb::DeviceBuilder  deviceBuilder(instance, physicalDevice);
+        deviceBuilder.SetSurface(m_Surface);
+        deviceBuilder.Build();
 
-        float queuePriority = 1.0f;
-        for (uint32_t queueFamily : uniqueQueueFamilies)
-        {
-            VkDeviceQueueCreateInfo queueCreateInfo{};
-            queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-            queueCreateInfo.queueFamilyIndex = queueFamily;
-            queueCreateInfo.queueCount = 1;
-            queueCreateInfo.pQueuePriorities = &queuePriority;
-            queueCreateInfos.push_back(queueCreateInfo);
-        }
-
-        // now dont need any features
-        VkPhysicalDeviceFeatures deviceFeatures{};
-
-        VkDeviceCreateInfo deviceCreateInfo{};
-        deviceCreateInfo.sType                      = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-        deviceCreateInfo.queueCreateInfoCount       = static_cast<uint32_t>(queueCreateInfos.size());
-        deviceCreateInfo.pQueueCreateInfos          = queueCreateInfos.data();
-        deviceCreateInfo.pEnabledFeatures           = &deviceFeatures;
-        deviceCreateInfo.enabledExtensionCount      = static_cast<uint32_t>(deviceExtensions.size()); // declared on top of file
-        deviceCreateInfo.ppEnabledExtensionNames    = deviceExtensions.data();
-        deviceCreateInfo.enabledLayerCount          = static_cast<uint32_t>(instance.layers.size());
-        deviceCreateInfo.ppEnabledLayerNames        = instance.layers.data();
-
-        ET_CORE_ASSERT(vkCreateDevice(m_PhysicalDevice, &deviceCreateInfo, nullptr, &m_Device) == VK_SUCCESS, "Create device");
-
+        device = deviceBuilder.Get();
+        m_Device = device.device;
         // Get device graphic queue
         vkGetDeviceQueue(m_Device, indices.graphicsFamily.value(), 0, &m_GraphicsQueue);
         vkGetDeviceQueue(m_Device, indices.presentFamily.value(), 0, &m_PresentQueue);
@@ -361,7 +348,8 @@ namespace Eternity
 
     void VulkanRenderer::DestroyLogicalDevice()
     {
-        vkDestroyDevice(m_Device, nullptr);
+//        vkDestroyDevice(m_Device, nullptr);
+        device.Destroy();
     }
 
     void VulkanRenderer::CreateSurface()
