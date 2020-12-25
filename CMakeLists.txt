@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(PROJECT_NAME Eternity)
 
 project(${PROJECT_NAME})
@@ -25,7 +25,8 @@ set(INCLUDES    ${VENDOR}
 
 set(SRCS    vendor/stb_image/stb_image.cpp
             Sandbox/main.cpp
-            Sandbox/VulkanHelper.cpp Sandbox/VulkanInstance.cpp Sandbox/VulkanInstance.hpp)
+            Sandbox/VulkanHelper.cpp
+        Sandbox/InstanceBuilder.cpp)
 
 include_directories(${INCLUDES})
 add_executable(${PROJECT_NAME} ${SRCS})

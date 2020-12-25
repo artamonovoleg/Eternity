@@ -9,6 +9,7 @@
 
 #include "Base.hpp"
 #include "VulkanHelper.hpp"
+#include "InstanceBuilder.hpp"
 
 namespace Eternity
 {
@@ -832,20 +833,32 @@ namespace Eternity
     }
 }
 
+class Renderer
+{
+    private:
+        vkb::Instance m_Instance;
+    public:
+        Renderer()
+        {
+            vkb::InstanceBuilder instanceBuilder;
+            instanceBuilder.SetAppName("Hello Triangle");
+            instanceBuilder.SetAppVersion(1, 0, 0);
+            instanceBuilder.SetEngineName("No engine");
+            instanceBuilder.RequireAPIVersion(1, 0, 5);
+            instanceBuilder.RequestDebug();
+            instanceBuilder.Build();
+            m_Instance = instanceBuilder.Get();
+        }
+
+        ~Renderer()
+        {
+            m_Instance.Destroy();
+        }
+};
 
 int main()
 {
-    glfwInit();
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    GLFWwindow* window = glfwCreateWindow(800, 600, "VkEternity", nullptr, nullptr);
-
-    Eternity::VulkanRenderer    renderer(window);
-
-    while (!glfwWindowShouldClose(window))
-    {
-        renderer.DrawFrame();
-        glfwPollEvents();
-    }
+    Renderer renderer;
     return EXIT_SUCCESS;
 }
 
