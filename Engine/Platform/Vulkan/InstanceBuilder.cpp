@@ -91,6 +91,11 @@ namespace vkb
         m_AppInfo.engineVersion = engineVersion;
     }
 
+    void InstanceBuilder::SetEngineVersion(int minor, int major, int patch)
+    {
+        m_AppInfo.engineVersion = VK_MAKE_VERSION(minor, major, patch);
+    }
+
     void InstanceBuilder::RequireAPIVersion(int major, int minor, int patch)
     {
         m_AppInfo.apiVersion  = VK_MAKE_VERSION(major, minor, patch);
@@ -139,4 +144,5 @@ namespace vkb
     {
         return m_Result;
     }
+
 }

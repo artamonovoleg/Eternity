@@ -241,9 +241,8 @@ namespace Eternity
     void VulkanRenderer::CreateInstance()
     {
         vkb::InstanceBuilder instanceBuilder;
-        instanceBuilder.SetAppName("Hello Triangle");
-        instanceBuilder.SetAppVersion(1, 0, 0);
-        instanceBuilder.SetEngineName("No engine");
+        instanceBuilder.SetEngineName("Eternity");
+        instanceBuilder.SetEngineVersion(1, 0, 0);
         instanceBuilder.RequireAPIVersion(1, 0, 5);
         instanceBuilder.RequestDebug();
         instanceBuilder.Build();

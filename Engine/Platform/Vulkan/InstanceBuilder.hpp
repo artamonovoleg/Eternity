@@ -45,6 +45,7 @@ namespace vkb
             void SetAppVersion(int minor, int major, int patch);
             void SetEngineName(const std::string& engineName);
             void SetEngineVersion(uint32_t engineVersion);
+            void SetEngineVersion(int minor, int major, int patch);
             void RequireAPIVersion(int minor, int major, int patch);
             void RequireAPIVersion(uint32_t version);
             void RequestDebug();
