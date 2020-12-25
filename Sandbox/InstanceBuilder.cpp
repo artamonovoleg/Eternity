@@ -5,6 +5,7 @@
 #include <GLFW/glfw3.h>
 #include "InstanceBuilder.hpp"
 #include "Base.hpp"
+#include "VulkanCheck.hpp"
 
 namespace vkb
 {
@@ -16,18 +17,15 @@ namespace vkb
             void* pUserData)
     {
         if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT)
-        ET_CORE_TRACE(pCallbackData->pMessage);
+            ET_CORE_TRACE(pCallbackData->pMessageIdName, pCallbackData->pMessage);
         else
         if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
-        ET_CORE_WARN(pCallbackData->pMessage);
+            ET_CORE_WARN(pCallbackData->pMessage);
         else
         if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
-        ET_CORE_ERROR(pCallbackData->pMessage);
+            ET_CORE_ERROR(pCallbackData->pMessage);
         return VK_FALSE;
     }
-
-    VkDebugUtilsMessengerEXT s_DebugMessenger;
-    VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo;
 
     void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo)
     {
@@ -36,12 +34,6 @@ namespace vkb
         createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
         createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
         createInfo.pfnUserCallback = DefaultDebugCallback;
-    }
-
-    VkDebugUtilsMessengerCreateInfoEXT* GetDebugCreateInfo()
-    {
-        PopulateDebugMessengerCreateInfo(debugCreateInfo);
-        return &debugCreateInfo;
     }
 
     VkResult CreateDebugUtilsMessenger(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger)
@@ -56,9 +48,8 @@ namespace vkb
     void DestroyDebugUtilsMessenger(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator)
     {
         auto func = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-        if (func != nullptr) {
+        if (func != nullptr)
             func(instance, debugMessenger, pAllocator);
-        }
     }
     ///
 
@@ -113,12 +104,17 @@ namespace vkb
     void InstanceBuilder::RequestDebug()
     {
         m_DebugEnabled = true;
-        PopulateDebugMessengerCreateInfo(debugCreateInfo);
+//        PopulateDebugMessengerCreateInfo(debugCreateInfo);
     }
 
     void InstanceBuilder::Build()
     {
         SetupRequiredExtensionsAndLayers();
+
+        VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
+        if (m_DebugEnabled)
+            PopulateDebugMessengerCreateInfo(debugCreateInfo);
+
         VkInstanceCreateInfo instanceCreateInfo{};
         instanceCreateInfo.sType                    = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
         instanceCreateInfo.pApplicationInfo         = &m_AppInfo;
@@ -127,16 +123,19 @@ namespace vkb
         instanceCreateInfo.enabledExtensionCount    = m_IntanceExtensions.size();
         instanceCreateInfo.ppEnabledExtensionNames  = m_IntanceExtensions.data();
         instanceCreateInfo.pNext                    = &debugCreateInfo;
-        vkCreateInstance(&instanceCreateInfo, nullptr, &m_Instance);
+        vkb::Check(vkCreateInstance(&instanceCreateInfo, nullptr, &m_Instance), "Instance create");
+
+        VkDebugUtilsMessengerEXT debugMessenger{};
 
         if (m_DebugEnabled)
-            CreateDebugUtilsMessenger(m_Instance, &debugCreateInfo, nullptr, &s_DebugMessenger);
+            CreateDebugUtilsMessenger(m_Instance, &debugCreateInfo, nullptr, &debugMessenger);
+
+        m_Result.instance       = m_Instance;
+        m_Result.debugMessenger = debugMessenger;
     }
 
     Instance InstanceBuilder::Get()
     {
-        return Instance(m_Instance, s_DebugMessenger);
+        return m_Result;
     }
-
-
 }

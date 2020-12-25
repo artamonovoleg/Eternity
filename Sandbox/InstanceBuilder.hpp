@@ -12,10 +12,25 @@ namespace vkb
     /// Debugging
     void DestroyDebugUtilsMessenger(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
     ///
-    class Instance;
+
+    struct Instance
+    {
+        VkInstance                  instance          = VK_NULL_HANDLE;
+        VkDebugUtilsMessengerEXT    debugMessenger    = VK_NULL_HANDLE;
+        Instance() = default;
+        explicit Instance(const VkInstance& instance, const VkDebugUtilsMessengerEXT& debugMessenger)
+                : instance(instance), debugMessenger(debugMessenger) {}
+        void Destroy() const
+        {
+            vkb::DestroyDebugUtilsMessenger(instance, debugMessenger, nullptr);
+            vkDestroyInstance(instance, nullptr);
+        }
+    };
+
     class InstanceBuilder
     {
         private:
+            Instance m_Result{};
             bool m_DebugEnabled = false;
             std::vector<const char*>    m_InstanceLayers;
             std::vector<const char*>    m_IntanceExtensions;
@@ -36,19 +51,5 @@ namespace vkb
             void RequestDebug();
             void Build();
             Instance Get();
-    };
-
-    struct Instance
-    {
-            VkInstance                  m_Instance          = VK_NULL_HANDLE;
-            VkDebugUtilsMessengerEXT    m_DebugMessenger    = VK_NULL_HANDLE;
-            Instance() = default;
-            explicit Instance(const VkInstance& instance, const VkDebugUtilsMessengerEXT& debugMessenger)
-                : m_Instance(instance), m_DebugMessenger(debugMessenger) {}
-            void Destroy() const
-            {
-                vkb::DestroyDebugUtilsMessenger(m_Instance, m_DebugMessenger, nullptr);
-                vkDestroyInstance(m_Instance, nullptr);
-            }
     };
 }
