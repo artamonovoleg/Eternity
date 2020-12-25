@@ -15,11 +15,10 @@ namespace vkb
 
     struct Instance
     {
-        VkInstance                  instance          = VK_NULL_HANDLE;
-        VkDebugUtilsMessengerEXT    debugMessenger    = VK_NULL_HANDLE;
+        VkInstance                  instance            = VK_NULL_HANDLE;
+        VkDebugUtilsMessengerEXT    debugMessenger      = VK_NULL_HANDLE;
+        std::vector<const char*>    layers              = {};
         Instance() = default;
-        explicit Instance(const VkInstance& instance, const VkDebugUtilsMessengerEXT& debugMessenger)
-                : instance(instance), debugMessenger(debugMessenger) {}
         void Destroy() const
         {
             vkb::DestroyDebugUtilsMessenger(instance, debugMessenger, nullptr);
@@ -30,12 +29,12 @@ namespace vkb
     class InstanceBuilder
     {
         private:
-            Instance m_Result{};
-            bool m_DebugEnabled = false;
+            Instance                    m_Result            = {};
+            bool                        m_DebugEnabled      = false;
             std::vector<const char*>    m_InstanceLayers;
             std::vector<const char*>    m_IntanceExtensions;
-            VkApplicationInfo           m_AppInfo       = {};
-            VkInstance                  m_Instance      = VK_NULL_HANDLE;
+            VkApplicationInfo           m_AppInfo           = {};
+            VkInstance                  m_Instance          = VK_NULL_HANDLE;
 
             void SetupRequiredExtensionsAndLayers();
         public:
@@ -49,6 +48,7 @@ namespace vkb
             void RequireAPIVersion(int minor, int major, int patch);
             void RequireAPIVersion(uint32_t version);
             void RequestDebug();
+
             void Build();
             Instance Get();
     };

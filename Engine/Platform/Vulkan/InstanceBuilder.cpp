@@ -132,6 +132,7 @@ namespace vkb
 
         m_Result.instance       = m_Instance;
         m_Result.debugMessenger = debugMessenger;
+        m_Result.layers         = m_InstanceLayers;
     }
 
     Instance InstanceBuilder::Get()
