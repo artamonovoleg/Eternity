@@ -1,7 +1,6 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-#include <algorithm>
 #include <vector>
 #include <set>
 #include <fstream>
@@ -9,6 +8,7 @@
 
 #include "Base.hpp"
 #include "InstanceBuilder.hpp"
+#include "PhysicalDeviceSelector.hpp"
 
 namespace Eternity
 {
@@ -138,6 +138,7 @@ namespace Eternity
             VkInstance          m_Instance          = VK_NULL_HANDLE;
             vkb::Instance       instance            = {};
             VkPhysicalDevice    m_PhysicalDevice    = VK_NULL_HANDLE;
+            vkb::PhysicalDevice physicalDevice      = {};
             VkDevice            m_Device            = VK_NULL_HANDLE;
 
             VkQueue             m_GraphicsQueue     = VK_NULL_HANDLE;
@@ -311,23 +312,10 @@ namespace Eternity
     // look for gpu, check founded suitability
     void VulkanRenderer::FindPhysicalDevice()
     {
-        uint32_t deviceCount = 0;
-        // get gpus count last parameter nullptr
-        vkEnumeratePhysicalDevices(m_Instance, &deviceCount, nullptr);
-        ET_CORE_ASSERT(deviceCount != 0, "No gpu");
-        std::vector<VkPhysicalDevice> devices(deviceCount);
-        // now enumerate again and save all gpus to vector
-        vkEnumeratePhysicalDevices(m_Instance, &deviceCount, devices.data());
-        // Find suitable gpu from list of all founded
-        for (const auto& device : devices)
-        {
-            if (IsDeviceSuitable(device))
-            {
-                m_PhysicalDevice = device;
-                break;
-            }
-        }
-        ET_CORE_ASSERT(m_PhysicalDevice != VK_NULL_HANDLE, "No suitable gpu");
+        vkb::PhysicalDeviceSelector deviceSelector(instance);
+        deviceSelector.Select();
+        physicalDevice = deviceSelector.Get();
+        m_PhysicalDevice = physicalDevice.physicalDevice;
     }
 
     // create logical device
