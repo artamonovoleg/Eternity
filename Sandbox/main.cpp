@@ -107,10 +107,8 @@ namespace Eternity
         private:
             GLFWwindow*         m_Window    = nullptr;
 
-            VkInstance          m_Instance          = VK_NULL_HANDLE;
-            vkb::Instance       instance            = {};
-            VkPhysicalDevice    m_PhysicalDevice    = VK_NULL_HANDLE;
-            vkb::PhysicalDevice physicalDevice      = {};
+            vkb::Instance       m_Instance            = {};
+            vkb::PhysicalDevice m_PhysicalDevice      = {};
             VkDevice            m_Device            = VK_NULL_HANDLE;
             vkb::Device         device              = {};
             VkQueue             m_GraphicsQueue     = VK_NULL_HANDLE;
@@ -217,29 +215,27 @@ namespace Eternity
         instanceBuilder.RequireAPIVersion(1, 0, 5);
         instanceBuilder.RequestDebug();
         instanceBuilder.Build();
-        instance = instanceBuilder.Get();
-        m_Instance  = instance.instance;
+        m_Instance = instanceBuilder.Get();
     }
 
     void VulkanRenderer::DestroyInstance()
     {
-        instance.Destroy();
+        m_Instance.Destroy();
     }
 
     // look for gpu, check founded suitability
     void VulkanRenderer::FindPhysicalDevice()
     {
-        vkb::PhysicalDeviceSelector deviceSelector(instance);
+        vkb::PhysicalDeviceSelector deviceSelector(m_Instance);
         deviceSelector.Select();
-        physicalDevice = deviceSelector.Get();
-        m_PhysicalDevice = physicalDevice.physicalDevice;
+        m_PhysicalDevice = deviceSelector.Get();
     }
 
     // create logical device
     // here we also get two queues
     void VulkanRenderer::CreateLogicalDevice()
     {
-        vkb::DeviceBuilder  deviceBuilder(instance, physicalDevice);
+        vkb::DeviceBuilder deviceBuilder(m_Instance, m_PhysicalDevice);
         deviceBuilder.SetSurface(m_Surface);
         deviceBuilder.Build();
 
@@ -252,23 +248,22 @@ namespace Eternity
 
     void VulkanRenderer::DestroyLogicalDevice()
     {
-//        vkDestroyDevice(m_Device, nullptr);
         device.Destroy();
     }
 
     void VulkanRenderer::CreateSurface()
     {
-        ET_CORE_ASSERT(glfwCreateWindowSurface(m_Instance, m_Window, nullptr, &m_Surface) == VK_SUCCESS, "Surface creation failed!");
+        ET_CORE_ASSERT(glfwCreateWindowSurface(m_Instance.instance, m_Window, nullptr, &m_Surface) == VK_SUCCESS, "Surface creation failed!");
     }
 
     void VulkanRenderer::DestroySurface()
     {
-        vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr);
+        vkDestroySurfaceKHR(m_Instance.instance, m_Surface, nullptr);
     }
 
     void VulkanRenderer::CreateSwapchain()
     {
-        SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(m_PhysicalDevice, m_Surface);
+        SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(m_PhysicalDevice.physicalDevice, m_Surface);
 
         VkSurfaceFormatKHR  surfaceFormat   = ChooseSwapSurfaceFormat(swapChainSupport.formats);
         VkPresentModeKHR    presentMode     = ChooseSwapPresentMode(swapChainSupport.presentModes);
