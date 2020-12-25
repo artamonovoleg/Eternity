@@ -253,7 +253,7 @@ namespace Eternity
 
     void VulkanRenderer::CreateSurface()
     {
-        ET_CORE_ASSERT(glfwCreateWindowSurface(m_Instance.instance, m_Window, nullptr, &m_Surface) == VK_SUCCESS, "Surface creation failed!");
+        vkb::Check(glfwCreateWindowSurface(m_Instance.instance, m_Window, nullptr, &m_Surface), "Surface creation failed!");
     }
 
     void VulkanRenderer::DestroySurface()
@@ -688,29 +688,6 @@ namespace Eternity
     }
 }
 
-class Renderer
-{
-    private:
-        vkb::Instance m_Instance;
-    public:
-        Renderer()
-        {
-            vkb::InstanceBuilder instanceBuilder;
-            instanceBuilder.SetAppName("Hello Triangle");
-            instanceBuilder.SetAppVersion(1, 0, 0);
-            instanceBuilder.SetEngineName("No engine");
-            instanceBuilder.RequireAPIVersion(1, 0, 5);
-            instanceBuilder.RequestDebug();
-            instanceBuilder.Build();
-            m_Instance = instanceBuilder.Get();
-        }
-
-        ~Renderer()
-        {
-            m_Instance.Destroy();
-        }
-};
-
 int main()
 {
     glfwInit();
@@ -727,4 +704,3 @@ int main()
     glfwTerminate();
     return EXIT_SUCCESS;
 }
-
