@@ -81,6 +81,8 @@ namespace vkb
         deviceCreateInfo.ppEnabledLayerNames        = m_Instance.layers.data();
 
         vkb::Check(vkCreateDevice(m_PhysicalDevice.physicalDevice, &deviceCreateInfo, nullptr, &m_Device.device), "Create device");
+        m_Device.graphicsQueueFamilyIndex   = m_GraphicsQueueFamily;
+        m_Device.presentQueueFamilyIndex    = m_PresentQueueFamily;
     }
 
     vkb::Device DeviceBuilder::Get() const

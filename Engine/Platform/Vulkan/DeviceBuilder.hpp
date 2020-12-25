@@ -12,6 +12,8 @@ namespace vkb
     struct Device
     {
         VkDevice        device    = VK_NULL_HANDLE;
+        uint32_t        graphicsQueueFamilyIndex;
+        uint32_t        presentQueueFamilyIndex;
         void Destroy() const
         {
             vkDestroyDevice(device, nullptr);

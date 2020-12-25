@@ -11,23 +11,6 @@
 
 namespace Eternity
 {
-    const std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
-    bool CheckDeviceExtensionSupport(const VkPhysicalDevice& device)
-    {
-        uint32_t extensionCount = 0;
-        vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
-
-        std::vector<VkExtensionProperties> availableExtensions(extensionCount);
-        vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
-
-        std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
-
-        for (const auto& extension : availableExtensions)
-            requiredExtensions.erase(extension.extensionName);
-
-        return requiredExtensions.empty();
-    }
-
     struct SwapChainSupportDetails
     {
         VkSurfaceCapabilitiesKHR capabilities;
@@ -123,16 +106,6 @@ namespace Eternity
     {
         private:
             GLFWwindow*         m_Window    = nullptr;
-            struct QueueFamilyIndices
-            {
-                std::optional<uint32_t> graphicsFamily;
-                std::optional<uint32_t> presentFamily;
-
-                bool IsComplete() const
-                {
-                    return graphicsFamily.has_value() && presentFamily.has_value();
-                }
-            };
 
             VkInstance          m_Instance          = VK_NULL_HANDLE;
             vkb::Instance       instance            = {};
@@ -171,7 +144,6 @@ namespace Eternity
             void CreateSurface();
             void DestroySurface();
 
-            VulkanRenderer::QueueFamilyIndices FindQueueFamilies(const VkPhysicalDevice& device);
             void FindPhysicalDevice();
 
             void CreateLogicalDevice();
@@ -254,42 +226,6 @@ namespace Eternity
         instance.Destroy();
     }
 
-    // Here we look for two important things.
-    // 1. Graphics queue
-    // 2. Present queue
-    VulkanRenderer::QueueFamilyIndices VulkanRenderer::FindQueueFamilies(const VkPhysicalDevice& device)
-    {
-        QueueFamilyIndices indices;
-        uint32_t queueFamilyCount = 0;
-        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
-
-        std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
-
-        int i = 0;
-        for (const auto& queueFamily : queueFamilies) {
-            if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-                indices.graphicsFamily = i;
-            }
-
-            // TODO: We need surface. In renderer? it's very bad.
-            VkBool32 presentSupport = false;
-            vkGetPhysicalDeviceSurfaceSupportKHR(device, i, m_Surface, &presentSupport);
-
-            if (presentSupport)
-            {
-                indices.presentFamily = i;
-            }
-
-            if (indices.IsComplete())
-                break;
-
-            i++;
-        }
-
-        return indices;
-    }
-
     // look for gpu, check founded suitability
     void VulkanRenderer::FindPhysicalDevice()
     {
@@ -303,38 +239,6 @@ namespace Eternity
     // here we also get two queues
     void VulkanRenderer::CreateLogicalDevice()
     {
-        QueueFamilyIndices indices = FindQueueFamilies(m_PhysicalDevice);
-//        ET_CORE_ASSERT(indices.IsComplete(), "Indices are not complete");
-//
-//        std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-//        std::set<uint32_t> uniqueQueueFamilies = { indices.graphicsFamily.value(), indices.graphicsFamily.value() };
-//
-//        float queuePriority = 1.0f;
-//        for (uint32_t queueFamily : uniqueQueueFamilies)
-//        {
-//            VkDeviceQueueCreateInfo queueCreateInfo{};
-//            queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-//            queueCreateInfo.queueFamilyIndex = queueFamily;
-//            queueCreateInfo.queueCount = 1;
-//            queueCreateInfo.pQueuePriorities = &queuePriority;
-//            queueCreateInfos.push_back(queueCreateInfo);
-//        }
-//
-//        // now dont need any features
-//        VkPhysicalDeviceFeatures deviceFeatures{};
-//
-//        VkDeviceCreateInfo deviceCreateInfo{};
-//        deviceCreateInfo.sType                      = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-//        deviceCreateInfo.queueCreateInfoCount       = static_cast<uint32_t>(queueCreateInfos.size());
-//        deviceCreateInfo.pQueueCreateInfos          = queueCreateInfos.data();
-//        deviceCreateInfo.pEnabledFeatures           = &deviceFeatures;
-//        deviceCreateInfo.enabledExtensionCount      = static_cast<uint32_t>(deviceExtensions.size()); // declared on top of file
-//        deviceCreateInfo.ppEnabledExtensionNames    = deviceExtensions.data();
-//        deviceCreateInfo.enabledLayerCount          = static_cast<uint32_t>(instance.layers.size());
-//        deviceCreateInfo.ppEnabledLayerNames        = instance.layers.data();
-//
-//        ET_CORE_ASSERT(vkCreateDevice(m_PhysicalDevice, &deviceCreateInfo, nullptr, &m_Device) == VK_SUCCESS, "Create device");
-
         vkb::DeviceBuilder  deviceBuilder(instance, physicalDevice);
         deviceBuilder.SetSurface(m_Surface);
         deviceBuilder.Build();
@@ -342,8 +246,8 @@ namespace Eternity
         device = deviceBuilder.Get();
         m_Device = device.device;
         // Get device graphic queue
-        vkGetDeviceQueue(m_Device, indices.graphicsFamily.value(), 0, &m_GraphicsQueue);
-        vkGetDeviceQueue(m_Device, indices.presentFamily.value(), 0, &m_PresentQueue);
+        vkGetDeviceQueue(m_Device, device.graphicsQueueFamilyIndex, 0, &m_GraphicsQueue);
+        vkGetDeviceQueue(m_Device, device.presentQueueFamilyIndex, 0, &m_PresentQueue);
     }
 
     void VulkanRenderer::DestroyLogicalDevice()
@@ -386,10 +290,9 @@ namespace Eternity
         swapchainCreateInfo.imageArrayLayers    = 1;
         swapchainCreateInfo.imageUsage          = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-        QueueFamilyIndices indices = FindQueueFamilies(m_PhysicalDevice);
-        uint32_t queueFamilyIndices[] = {indices.graphicsFamily.value(), indices.presentFamily.value()};
+        uint32_t queueFamilyIndices[] = { device.graphicsQueueFamilyIndex, device.presentQueueFamilyIndex };
 
-        if (indices.graphicsFamily != indices.presentFamily)
+        if (device.graphicsQueueFamilyIndex != device.presentQueueFamilyIndex)
         {
             swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
             swapchainCreateInfo.queueFamilyIndexCount = 2;
@@ -682,11 +585,9 @@ namespace Eternity
 
     void VulkanRenderer::CreateCommandPool()
     {
-        QueueFamilyIndices queueFamilyIndices = FindQueueFamilies(m_PhysicalDevice);
-
         VkCommandPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-        poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
+        poolInfo.queueFamilyIndex = device.graphicsQueueFamilyIndex;
         poolInfo.flags = 0; // Optional
 
         ET_CORE_ASSERT(vkCreateCommandPool(m_Device, &poolInfo, nullptr, &m_CommandPool) == VK_SUCCESS, "Command pool cration failed!")
