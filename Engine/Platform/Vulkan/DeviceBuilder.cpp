@@ -5,42 +5,68 @@
 #include <set>
 #include "DeviceBuilder.hpp"
 #include "VulkanCheck.hpp"
+#include "Base.hpp"
 
 namespace vkb
 {
 
-    void DeviceBuilder::FindQueueFamilies()
+    uint32_t GetPresentationFamilyIndex(const vkb::PhysicalDevice& physicalDevice, std::vector<VkQueueFamilyProperties>& queueFamilies)
     {
-        uint32_t queueFamilyCount = 0;
-
-        vkGetPhysicalDeviceQueueFamilyProperties(m_PhysicalDevice.physicalDevice, &queueFamilyCount, nullptr);
-        std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-        vkGetPhysicalDeviceQueueFamilyProperties(m_PhysicalDevice.physicalDevice, &queueFamilyCount, queueFamilies.data());
-
         int i = 0;
-        bool graphicsFound  = false;
-        bool presentFound   = false;
+        for (const auto& queueFamily : queueFamilies)
+        {
+            VkBool32 presentSupport = false;
+            vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice.device, i, physicalDevice.surface, &presentSupport);
+            if (presentSupport)
+                return i;
+            i++;
+        }
+        ET_CORE_ASSERT(false, "No presentation family");
+        return -1;
+    }
+
+    uint32_t GetGraphicsFamilyIndex(const vkb::PhysicalDevice& physicalDevice, std::vector<VkQueueFamilyProperties>& queueFamilies)
+    {
+        int i = 0;
         for (const auto& queueFamily : queueFamilies)
         {
             if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
-            {
-                m_GraphicsQueueFamily = i;
-                graphicsFound = true;
-            }
-
-            VkBool32 presentSupport = false;
-            vkGetPhysicalDeviceSurfaceSupportKHR(m_PhysicalDevice.physicalDevice, i, m_Surface, &presentSupport);
-
-            if (presentSupport)
-            {
-                m_PresentQueueFamily    = i;
-                presentFound            = true;
-            }
-
-            if (graphicsFound && presentFound)
-                break;
+                return i;
             i++;
         }
+        ET_CORE_ASSERT(false, "No graphics family");
+        return -1;
+    }
+
+    uint32_t Device::GetQueueFamilyIndex(const vkb::PhysicalDevice& physicalDevice, QueueType type)
+    {
+        static uint32_t queueFamilyCount = 0;
+
+        vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice.device, &queueFamilyCount, nullptr);
+        static std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+        vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice.device, &queueFamilyCount, queueFamilies.data());
+
+        switch (type)
+        {
+            case QueueType::Graphics:
+                return GetGraphicsFamilyIndex(physicalDevice, queueFamilies);
+            case QueueType::Presentation:
+                return GetPresentationFamilyIndex(physicalDevice, queueFamilies);
+        }
+        ET_CORE_ASSERT(false);
+        return -1;
+    }
+
+    VkQueue Device::GetQueue(const vkb::PhysicalDevice& physicalDevice, vkb::QueueType type)
+    {
+        VkQueue result;
+        vkGetDeviceQueue(device, GetQueueFamilyIndex(physicalDevice, type), 0, &result);
+        return result;
+    }
+
+    void Device::Destroy() const
+    {
+        vkDestroyDevice(device, nullptr);
     }
 
     void DeviceBuilder::SetSurface(VkSurfaceKHR surface)
@@ -50,10 +76,9 @@ namespace vkb
 
     void DeviceBuilder::Build()
     {
-        FindQueueFamilies();
-
         std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-        std::set<uint32_t> uniqueQueueFamilies = { m_PresentQueueFamily, m_GraphicsQueueFamily };
+        std::set<uint32_t> uniqueQueueFamilies = { m_Device.GetQueueFamilyIndex(m_PhysicalDevice, vkb::QueueType::Presentation),
+                                                   m_Device.GetQueueFamilyIndex(m_PhysicalDevice, vkb::QueueType::Graphics)};
 
         float queuePriority = 1.0f;
         for (uint32_t queueFamily : uniqueQueueFamilies)
@@ -80,9 +105,7 @@ namespace vkb
         deviceCreateInfo.enabledLayerCount          = static_cast<uint32_t>(m_Instance.layers.size());
         deviceCreateInfo.ppEnabledLayerNames        = m_Instance.layers.data();
 
-        vkb::Check(vkCreateDevice(m_PhysicalDevice.physicalDevice, &deviceCreateInfo, nullptr, &m_Device.device), "Create device");
-        m_Device.graphicsQueueFamilyIndex   = m_GraphicsQueueFamily;
-        m_Device.presentQueueFamilyIndex    = m_PresentQueueFamily;
+        vkb::Check(vkCreateDevice(m_PhysicalDevice.device, &deviceCreateInfo, nullptr, &m_Device.device), "Create device");
     }
 
     vkb::Device DeviceBuilder::Get() const

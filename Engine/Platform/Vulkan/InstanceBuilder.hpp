@@ -19,11 +19,7 @@ namespace vkb
         VkDebugUtilsMessengerEXT    debugMessenger      = VK_NULL_HANDLE;
         std::vector<const char*>    layers              = {};
         Instance() = default;
-        void Destroy() const
-        {
-            vkb::DestroyDebugUtilsMessenger(instance, debugMessenger, nullptr);
-            vkDestroyInstance(instance, nullptr);
-        }
+        void Destroy() const;
     };
 
     class InstanceBuilder

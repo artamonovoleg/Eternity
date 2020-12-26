@@ -9,7 +9,8 @@ namespace vkb
 {
     struct PhysicalDevice
     {
-        VkPhysicalDevice        physicalDevice;
+        VkPhysicalDevice        device;
+        VkSurfaceKHR            surface;
     };
 
     class PhysicalDeviceSelector
@@ -21,7 +22,7 @@ namespace vkb
             explicit PhysicalDeviceSelector(const vkb::Instance& instance)
                 : m_Instance(instance) {}
             ~PhysicalDeviceSelector() = default;
-
+            void SetSurface(VkSurfaceKHR surface);
             void                    Select();
             [[nodiscard]]
             vkb::PhysicalDevice     Get() const;

@@ -9,27 +9,28 @@
 
 namespace vkb
 {
+    enum class QueueType
+    {
+        Graphics,
+        Presentation
+    };
+
     struct Device
     {
         VkDevice        device    = VK_NULL_HANDLE;
-        uint32_t        graphicsQueueFamilyIndex;
-        uint32_t        presentQueueFamilyIndex;
-        void Destroy() const
-        {
-            vkDestroyDevice(device, nullptr);
-        }
+        uint32_t        GetQueueFamilyIndex(const vkb::PhysicalDevice& physicalDevice, QueueType type);
+        VkQueue         GetQueue(const vkb::PhysicalDevice& physicalDevice, vkb::QueueType type);
+        void            Destroy() const;
     };
 
     class DeviceBuilder
     {
         private:
+            friend class Device;
             const vkb::Instance&        m_Instance;
             const vkb::PhysicalDevice&  m_PhysicalDevice;
             vkb::Device                 m_Device = {};
             VkSurfaceKHR                m_Surface   = VK_NULL_HANDLE;
-            uint32_t                    m_GraphicsQueueFamily;
-            uint32_t                    m_PresentQueueFamily;
-            void FindQueueFamilies();
         public:
             DeviceBuilder(const vkb::Instance& instance, const vkb::PhysicalDevice& physicalDevice)
                 : m_Instance(instance), m_PhysicalDevice(physicalDevice) {}

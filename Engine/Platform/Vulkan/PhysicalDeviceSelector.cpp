@@ -9,6 +9,11 @@
 
 namespace vkb
 {
+    void PhysicalDeviceSelector::SetSurface(VkSurfaceKHR surface)
+    {
+        m_PhysicalDevice.surface = surface;
+    }
+
     void PhysicalDeviceSelector::Select()
     {
         uint32_t deviceCount = 0;
@@ -20,7 +25,7 @@ namespace vkb
         vkEnumeratePhysicalDevices(m_Instance.instance, &deviceCount, devices.data());
         // TODO: check suitability
         // For now I will take first founded device
-        m_PhysicalDevice.physicalDevice = devices[0];
+        m_PhysicalDevice.device = devices[0];
     }
 
     vkb::PhysicalDevice PhysicalDeviceSelector::Get() const

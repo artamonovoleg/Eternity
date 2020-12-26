@@ -109,8 +109,7 @@ namespace Eternity
 
             vkb::Instance       m_Instance            = {};
             vkb::PhysicalDevice m_PhysicalDevice      = {};
-            VkDevice            m_Device            = VK_NULL_HANDLE;
-            vkb::Device         device              = {};
+            vkb::Device         m_Device              = {};
             VkQueue             m_GraphicsQueue     = VK_NULL_HANDLE;
             VkQueue             m_PresentQueue      = VK_NULL_HANDLE;
 
@@ -227,6 +226,7 @@ namespace Eternity
     void VulkanRenderer::FindPhysicalDevice()
     {
         vkb::PhysicalDeviceSelector deviceSelector(m_Instance);
+        deviceSelector.SetSurface(m_Surface);
         deviceSelector.Select();
         m_PhysicalDevice = deviceSelector.Get();
     }
@@ -238,17 +238,16 @@ namespace Eternity
         vkb::DeviceBuilder deviceBuilder(m_Instance, m_PhysicalDevice);
         deviceBuilder.SetSurface(m_Surface);
         deviceBuilder.Build();
+        m_Device = deviceBuilder.Get();
 
-        device = deviceBuilder.Get();
-        m_Device = device.device;
         // Get device graphic queue
-        vkGetDeviceQueue(m_Device, device.graphicsQueueFamilyIndex, 0, &m_GraphicsQueue);
-        vkGetDeviceQueue(m_Device, device.presentQueueFamilyIndex, 0, &m_PresentQueue);
+        m_GraphicsQueue = m_Device.GetQueue(m_PhysicalDevice, vkb::QueueType::Graphics);
+        m_PresentQueue  = m_Device.GetQueue(m_PhysicalDevice, vkb::QueueType::Presentation);
     }
 
     void VulkanRenderer::DestroyLogicalDevice()
     {
-        device.Destroy();
+        m_Device.Destroy();
     }
 
     void VulkanRenderer::CreateSurface()
@@ -263,7 +262,7 @@ namespace Eternity
 
     void VulkanRenderer::CreateSwapchain()
     {
-        SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(m_PhysicalDevice.physicalDevice, m_Surface);
+        SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(m_PhysicalDevice.device, m_Surface);
 
         VkSurfaceFormatKHR  surfaceFormat   = ChooseSwapSurfaceFormat(swapChainSupport.formats);
         VkPresentModeKHR    presentMode     = ChooseSwapPresentMode(swapChainSupport.presentModes);
@@ -285,9 +284,10 @@ namespace Eternity
         swapchainCreateInfo.imageArrayLayers    = 1;
         swapchainCreateInfo.imageUsage          = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-        uint32_t queueFamilyIndices[] = { device.graphicsQueueFamilyIndex, device.presentQueueFamilyIndex };
+        uint32_t queueFamilyIndices[] = { m_Device.GetQueueFamilyIndex(m_PhysicalDevice, vkb::QueueType::Graphics),
+                                          m_Device.GetQueueFamilyIndex(m_PhysicalDevice, vkb::QueueType::Presentation) };
 
-        if (device.graphicsQueueFamilyIndex != device.presentQueueFamilyIndex)
+        if (m_Device.GetQueueFamilyIndex(m_PhysicalDevice, vkb::QueueType::Graphics) != m_Device.GetQueueFamilyIndex(m_PhysicalDevice, vkb::QueueType::Presentation))
         {
             swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
             swapchainCreateInfo.queueFamilyIndexCount = 2;
@@ -305,16 +305,16 @@ namespace Eternity
         swapchainCreateInfo.clipped         = VK_TRUE;
         swapchainCreateInfo.oldSwapchain    = VK_NULL_HANDLE;
 
-        ET_CORE_ASSERT(vkCreateSwapchainKHR(m_Device, &swapchainCreateInfo, nullptr, &m_Swapchain) == VK_SUCCESS, "Swapchain creation");
+        ET_CORE_ASSERT(vkCreateSwapchainKHR(m_Device.device, &swapchainCreateInfo, nullptr, &m_Swapchain) == VK_SUCCESS, "Swapchain creation");
 
-        vkGetSwapchainImagesKHR(m_Device, m_Swapchain, &imageCount, nullptr);
+        vkGetSwapchainImagesKHR(m_Device.device, m_Swapchain, &imageCount, nullptr);
         m_SwapchainImages.resize(imageCount);
-        ET_CORE_ASSERT(vkGetSwapchainImagesKHR(m_Device, m_Swapchain, &imageCount, m_SwapchainImages.data()) == VK_SUCCESS, "Get swapchain images");
+        ET_CORE_ASSERT(vkGetSwapchainImagesKHR(m_Device.device, m_Swapchain, &imageCount, m_SwapchainImages.data()) == VK_SUCCESS, "Get swapchain images");
     }
 
     void VulkanRenderer::DestroySwapchain()
     {
-        vkDestroySwapchainKHR(m_Device, m_Swapchain, nullptr);
+        vkDestroySwapchainKHR(m_Device.device, m_Swapchain, nullptr);
     }
 
     void VulkanRenderer::CreateImageViews()
@@ -337,7 +337,7 @@ namespace Eternity
             imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
             imageViewCreateInfo.subresourceRange.layerCount     = 1;
 
-            ET_CORE_ASSERT(vkCreateImageView(m_Device, &imageViewCreateInfo, nullptr, &m_SwapchainImageViews[i]) == VK_SUCCESS, "Failed to create image view");
+            ET_CORE_ASSERT(vkCreateImageView(m_Device.device, &imageViewCreateInfo, nullptr, &m_SwapchainImageViews[i]) == VK_SUCCESS, "Failed to create image view");
         }
     }
 
@@ -345,7 +345,7 @@ namespace Eternity
     {
         for (const auto& imageView : m_SwapchainImageViews)
         {
-            vkDestroyImageView(m_Device, imageView, nullptr);
+            vkDestroyImageView(m_Device.device, imageView, nullptr);
         }
     }
 
@@ -400,13 +400,13 @@ namespace Eternity
         renderPassInfo.dependencyCount = 1;
         renderPassInfo.pDependencies = &dependency;
 
-        ET_CORE_ASSERT(vkCreateRenderPass(m_Device, &renderPassInfo, nullptr, &m_RenderPass) == VK_SUCCESS, "Create render pass failed!");
+        ET_CORE_ASSERT(vkCreateRenderPass(m_Device.device, &renderPassInfo, nullptr, &m_RenderPass) == VK_SUCCESS, "Create render pass failed!");
 
     }
 
     void VulkanRenderer::DestroyRenderPass()
     {
-        vkDestroyRenderPass(m_Device, m_RenderPass, nullptr);
+        vkDestroyRenderPass(m_Device.device, m_RenderPass, nullptr);
     }
 
     void VulkanRenderer::CreateGraphicsPipeline()
@@ -414,8 +414,8 @@ namespace Eternity
         auto vertShaderCode = ReadShader("shaders/vert.spv");
         auto fragShaderCode = ReadShader("shaders/frag.spv");
 
-        VkShaderModule vertShaderModule = CreateShaderModule(m_Device, vertShaderCode);
-        VkShaderModule fragShaderModule = CreateShaderModule(m_Device, fragShaderCode);
+        VkShaderModule vertShaderModule = CreateShaderModule(m_Device.device, vertShaderCode);
+        VkShaderModule fragShaderModule = CreateShaderModule(m_Device.device, fragShaderCode);
 
         VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
         vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -518,7 +518,7 @@ namespace Eternity
         pipelineLayoutInfo.pushConstantRangeCount   = 0; // Optional
         pipelineLayoutInfo.pPushConstantRanges      = nullptr; // Optional
 
-        ET_CORE_ASSERT(vkCreatePipelineLayout(m_Device, &pipelineLayoutInfo, nullptr, &m_PipelineLayout) == VK_SUCCESS, "Create pipeline layout");
+        ET_CORE_ASSERT(vkCreatePipelineLayout(m_Device.device, &pipelineLayoutInfo, nullptr, &m_PipelineLayout) == VK_SUCCESS, "Create pipeline layout");
 
         VkGraphicsPipelineCreateInfo pipelineInfo{};
         pipelineInfo.sType                  = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -538,17 +538,17 @@ namespace Eternity
         pipelineInfo.basePipelineHandle     = VK_NULL_HANDLE; // Optional
         pipelineInfo.basePipelineIndex      = -1; // Optional
 
-        ET_CORE_ASSERT(vkCreateGraphicsPipelines(m_Device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_GraphicsPipeline) == VK_SUCCESS, "Create pipeline");
+        ET_CORE_ASSERT(vkCreateGraphicsPipelines(m_Device.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_GraphicsPipeline) == VK_SUCCESS, "Create pipeline");
 
         // cleanup. dont need shader modules more
-        vkDestroyShaderModule(m_Device, vertShaderModule, nullptr);
-        vkDestroyShaderModule(m_Device, fragShaderModule, nullptr);
+        vkDestroyShaderModule(m_Device.device, vertShaderModule, nullptr);
+        vkDestroyShaderModule(m_Device.device, fragShaderModule, nullptr);
     }
 
     void VulkanRenderer::DestroyGraphicsPipeline()
     {
-        vkDestroyPipeline(m_Device, m_GraphicsPipeline, nullptr);
-        vkDestroyPipelineLayout(m_Device, m_PipelineLayout, nullptr);
+        vkDestroyPipeline(m_Device.device, m_GraphicsPipeline, nullptr);
+        vkDestroyPipelineLayout(m_Device.device, m_PipelineLayout, nullptr);
     }
 
     void VulkanRenderer::CreateFramebuffers()
@@ -568,29 +568,29 @@ namespace Eternity
             framebufferInfo.height          = m_SwapchainExtent.height;
             framebufferInfo.layers          = 1;
 
-            ET_CORE_ASSERT(vkCreateFramebuffer(m_Device, &framebufferInfo, nullptr, &m_SwapchainFramebuffers[i]) == VK_SUCCESS);
+            ET_CORE_ASSERT(vkCreateFramebuffer(m_Device.device, &framebufferInfo, nullptr, &m_SwapchainFramebuffers[i]) == VK_SUCCESS);
         }
     }
 
     void VulkanRenderer::DestroyFramebuffers()
     {
         for (auto framebuffer : m_SwapchainFramebuffers)
-            vkDestroyFramebuffer(m_Device, framebuffer, nullptr);
+            vkDestroyFramebuffer(m_Device.device, framebuffer, nullptr);
     }
 
     void VulkanRenderer::CreateCommandPool()
     {
         VkCommandPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-        poolInfo.queueFamilyIndex = device.graphicsQueueFamilyIndex;
+        poolInfo.queueFamilyIndex = m_Device.GetQueueFamilyIndex(m_PhysicalDevice, vkb::QueueType::Presentation);
         poolInfo.flags = 0; // Optional
 
-        ET_CORE_ASSERT(vkCreateCommandPool(m_Device, &poolInfo, nullptr, &m_CommandPool) == VK_SUCCESS, "Command pool cration failed!")
+        vkb::Check(vkCreateCommandPool(m_Device.device, &poolInfo, nullptr, &m_CommandPool), "Command pool cration failed!");
     }
 
     void VulkanRenderer::DestroyCommandPool()
     {
-        vkDestroyCommandPool(m_Device, m_CommandPool, nullptr);
+        vkDestroyCommandPool(m_Device.device, m_CommandPool, nullptr);
     }
 
     void VulkanRenderer::CreateCommandBuffers()
@@ -603,7 +603,7 @@ namespace Eternity
         allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
         allocInfo.commandBufferCount = static_cast<uint32_t>(m_CommandBuffers.size());
 
-        ET_CORE_ASSERT(vkAllocateCommandBuffers(m_Device, &allocInfo, m_CommandBuffers.data()) == VK_SUCCESS, "Allocate command buffers failed!");
+        ET_CORE_ASSERT(vkAllocateCommandBuffers(m_Device.device, &allocInfo, m_CommandBuffers.data()) == VK_SUCCESS, "Allocate command buffers failed!");
 
         for (size_t i = 0; i < m_CommandBuffers.size(); i++)
         {
@@ -639,20 +639,20 @@ namespace Eternity
     {
         VkSemaphoreCreateInfo semaphoreInfo{};
         semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-        ET_CORE_ASSERT(vkCreateSemaphore(m_Device, &semaphoreInfo, nullptr, &m_ImageAvailableSemaphore) == VK_SUCCESS &&
-        vkCreateSemaphore(m_Device, &semaphoreInfo, nullptr, &m_RenderFinishedSemaphore) == VK_SUCCESS);
+        ET_CORE_ASSERT(vkCreateSemaphore(m_Device.device, &semaphoreInfo, nullptr, &m_ImageAvailableSemaphore) == VK_SUCCESS &&
+        vkCreateSemaphore(m_Device.device, &semaphoreInfo, nullptr, &m_RenderFinishedSemaphore) == VK_SUCCESS);
     }
 
     void VulkanRenderer::DestroySemaphores()
     {
-        vkDestroySemaphore(m_Device, m_RenderFinishedSemaphore, nullptr);
-        vkDestroySemaphore(m_Device, m_ImageAvailableSemaphore, nullptr);
+        vkDestroySemaphore(m_Device.device, m_RenderFinishedSemaphore, nullptr);
+        vkDestroySemaphore(m_Device.device, m_ImageAvailableSemaphore, nullptr);
     }
 
     void VulkanRenderer::DrawFrame()
     {
         uint32_t imageIndex;
-        vkAcquireNextImageKHR(m_Device, m_Swapchain, UINT64_MAX, m_ImageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+        vkAcquireNextImageKHR(m_Device.device, m_Swapchain, UINT64_MAX, m_ImageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
 
         VkSubmitInfo submitInfo{};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;

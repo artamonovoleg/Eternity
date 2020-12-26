@@ -9,6 +9,12 @@
 
 namespace vkb
 {
+    void Instance::Destroy() const
+    {
+        vkb::DestroyDebugUtilsMessenger(instance, debugMessenger, nullptr);
+        vkDestroyInstance(instance, nullptr);
+    }
+
     /// Debuging
     static VKAPI_ATTR VkBool32 VKAPI_CALL DefaultDebugCallback(
             VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -144,5 +150,4 @@ namespace vkb
     {
         return m_Result;
     }
-
 }
