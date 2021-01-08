@@ -1,35 +1,10 @@
 #include <iostream>
-#include <mutex>
 #include <vector>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+#include "Window.hpp"
 #include "VulkanHelper.hpp"
-
-namespace 
-{
-    GLFWwindow* pWindow;
-    std::once_flag glfwInitFlag;
-}
-
-bool CreateWindow(int width, int height, const std::string& title)
-{
-    std::call_once(glfwInitFlag, [] () { glfwInit(); });
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    pWindow = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
-    return (pWindow != nullptr);
-}
-
-GLFWwindow* GetCurrentWindow()
-{
-    return pWindow;
-}
-
-void DestroyWindow()
-{
-    glfwDestroyWindow(pWindow);
-    glfwTerminate();
-}
 
 class VulkanRenderer
 {
@@ -41,6 +16,7 @@ class VulkanRenderer
         VkSurfaceKHR                m_Surface           = VK_NULL_HANDLE;
 
         void InitInstance();
+        void CreateDevice();
     public:
         void InitVulkan();
         void DeinitVulkan();
@@ -49,10 +25,12 @@ class VulkanRenderer
 void VulkanRenderer::InitVulkan()
 {
     InitInstance();
+    CreateDevice();
 }
 
 void VulkanRenderer::DeinitVulkan()
 {
+    vkDestroyDevice(m_Device, nullptr);
     vkh::DestroyDebugUtilsMessengerEXT(m_Instance, m_DebugMessenger, nullptr);
     vkDestroyInstance(m_Instance, nullptr);
 }
@@ -72,20 +50,26 @@ void VulkanRenderer::InitInstance()
     m_DebugMessenger    = inst_ret.second;
 }
 
+void VulkanRenderer::CreateDevice()
+{
+    m_GPU       = vkh::SelectPhysicalDevice(m_Instance);
+    m_Device    = vkh::BuildDevice(m_GPU);
+}
+
 int main(int, char **) 
 {
-    CreateWindow(800, 600, "Eternity");
+    Eternity::CreateWindow(800, 600, "Eternity");
 
     VulkanRenderer renderer;
     renderer.InitVulkan();
 
-    while (!glfwWindowShouldClose(GetCurrentWindow()))
+    while (!glfwWindowShouldClose(Eternity::GetCurrentWindow()))
     {
         glfwPollEvents();
     }
 
     renderer.DeinitVulkan();
 
-    DestroyWindow();
+    Eternity::DestroyWindow();
     return 0; 
 }
