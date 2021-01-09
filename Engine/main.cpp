@@ -2,12 +2,35 @@
 #include <vector>
 #include <cmath>
 #include <cstring>
+#include <deque>
+#include <functional>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
 #include "Window.hpp"
 #include "VulkanHelper.hpp"
 #include "Mesh.hpp"
+
+struct DeletionQueue
+{
+	std::deque<std::function<void()>> deletors;
+
+	void PushDeleter(std::function<void()>&& function) 
+    {
+		deletors.push_back(function);
+	}
+
+	void Flush() 
+    {
+		// reverse iterate the deletion queue to execute all the functions
+		for (auto it = deletors.rbegin(); it != deletors.rend(); it++) 
+        {
+			(*it)(); //call functors
+		}
+
+		deletors.clear();
+	}
+};
 
 class VulkanRenderer
 {
@@ -34,7 +57,8 @@ class VulkanRenderer
 
         VkRenderPass                m_RenderPass            = VK_NULL_HANDLE;
         std::vector<VkFramebuffer>  m_Framebuffers          = {};
-
+        
+        DeletionQueue               m_DeletionQueue         = {};
         // render loop
         int                         m_FrameNumber           = 0;
         VkSemaphore                 m_PresentSemaphore      = VK_NULL_HANDLE;
@@ -85,19 +109,7 @@ void VulkanRenderer::DeinitVulkan()
 {
     vkDeviceWaitIdle(m_Device);
 
-    DestroySyncObjects();
-    vkDestroyCommandPool(m_Device, m_CommandPool, nullptr);
-    for (const auto& framebuffer : m_Framebuffers)
-        vkDestroyFramebuffer(m_Device, framebuffer, nullptr);
-    vkDestroyPipeline(m_Device, m_MeshPipeline, nullptr);
-    vkDestroyPipeline(m_Device, m_Pipeline, nullptr);
-    vkDestroyPipelineLayout(m_Device, m_PipelineLayout, nullptr);
-    vkDestroyRenderPass(m_Device, m_RenderPass, nullptr);
-    for (const auto& imageView : m_SwapchainImageViews)
-        vkDestroyImageView(m_Device, imageView, nullptr);
-    vkDestroySwapchainKHR(m_Device, m_Swapchain, nullptr);
-
-    vkDestroyBuffer(m_Device, m_Mesh.vertexBuffer, nullptr);
+    m_DeletionQueue.Flush();
     vkFreeMemory(m_Device, m_VertexBufferMemory, nullptr);
 
     vkDestroyDevice(m_Device, nullptr);
@@ -255,6 +267,11 @@ void VulkanRenderer::CreateSwapchain()
     m_SwapchainImageFormat              = swachain_ret.imageFormat;
     m_SwapchainExtent                   = swachain_ret.extent;
     m_SwapchainImageViews               = swachain_ret.imageViews;
+
+    m_DeletionQueue.PushDeleter([=]() 
+    {
+		vkDestroySwapchainKHR(m_Device, m_Swapchain, nullptr);
+	});
 }
 
 void VulkanRenderer::InitCommands()
@@ -284,6 +301,11 @@ void VulkanRenderer::InitCommands()
 
     res = vkAllocateCommandBuffers(m_Device, &cmdAllocCI, &m_CommandBuffer);
     vkh::Check(res, "Command buffer allocate failed");
+
+    m_DeletionQueue.PushDeleter([=]() 
+    {
+		vkDestroyCommandPool(m_Device, m_CommandPool, nullptr);
+	});
 }
 
 void VulkanRenderer::CreateRenderPass()
@@ -336,6 +358,11 @@ void VulkanRenderer::CreateRenderPass()
 	
 	auto res = vkCreateRenderPass(m_Device, &renderPassCI, nullptr, &m_RenderPass);
     vkh::Check(res, "RenderPass create failed");
+
+    m_DeletionQueue.PushDeleter([=]() 
+    {
+		vkDestroyRenderPass(m_Device, m_RenderPass, nullptr);
+    });
 }
 
 void VulkanRenderer::CreateFramebuffers()
@@ -361,6 +388,12 @@ void VulkanRenderer::CreateFramebuffers()
     {
 		frambufferCI.pAttachments = &m_SwapchainImageViews[i];
 		vkh::Check(vkCreateFramebuffer(m_Device, &frambufferCI, nullptr, &m_Framebuffers[i]), "Framebuffer create failed");
+
+        m_DeletionQueue.PushDeleter([=]() 
+        {
+            vkDestroyFramebuffer(m_Device, m_Framebuffers[i], nullptr);
+            vkDestroyImageView(m_Device, m_SwapchainImageViews[i], nullptr);
+        });	
 	}
 }
 
@@ -377,7 +410,10 @@ void VulkanRenderer::CreateSyncObjects()
 
 	auto res = vkCreateFence(m_Device, &fenceCI, nullptr, &m_RenderFence);
     vkh::Check(res, "Fence create failed");
-
+    m_DeletionQueue.PushDeleter([=]() 
+    {
+        vkDestroyFence(m_Device, m_RenderFence, nullptr);
+    });
 	//for the semaphores we don't need any flags
 	VkSemaphoreCreateInfo semaphoreCI
     {
@@ -389,6 +425,11 @@ void VulkanRenderer::CreateSyncObjects()
     vkh::Check(res, "Present semaphore create failed");
 	res = vkCreateSemaphore(m_Device, &semaphoreCI, nullptr, &m_RenderSemaphore);
     vkh::Check(res, "Render semaphore create failed");
+    m_DeletionQueue.PushDeleter([=]() 
+    {
+        vkDestroySemaphore(m_Device, m_PresentSemaphore, nullptr);
+        vkDestroySemaphore(m_Device, m_RenderSemaphore, nullptr);	
+    });
 }
 
 void VulkanRenderer::DestroySyncObjects()
@@ -464,6 +505,13 @@ void VulkanRenderer::CreatePipeline()
     vkDestroyShaderModule(m_Device, meshVertShader, nullptr);
     vkDestroyShaderModule(m_Device, triangleFragShader, nullptr);
     vkDestroyShaderModule(m_Device, triangleVertShader, nullptr);
+
+    m_DeletionQueue.PushDeleter([=]() 
+    {
+        vkDestroyPipeline(m_Device, m_MeshPipeline, nullptr);
+        vkDestroyPipeline(m_Device, m_Pipeline, nullptr);
+        vkDestroyPipelineLayout(m_Device, m_PipelineLayout, nullptr);
+    });
 }
 
 uint32_t FindMemoryType(const VkPhysicalDevice& device, uint32_t typeFilter, VkMemoryPropertyFlags properties) 
@@ -509,6 +557,11 @@ void VulkanRenderer::UploadMesh(Mesh& mesh)
     vkMapMemory(m_Device, m_VertexBufferMemory, 0, bufferInfo.size, 0, &data);
     std::memcpy(data, mesh.vertices.data(), mesh.vertices.size() * sizeof(Vertex));
     vkUnmapMemory(m_Device, m_VertexBufferMemory);
+
+    m_DeletionQueue.PushDeleter([=]()
+    {
+        vkDestroyBuffer(m_Device, mesh.vertexBuffer, nullptr);
+    });
 }
 
 void VulkanRenderer::LoadMeshes()
