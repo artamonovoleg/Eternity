@@ -8,5 +8,7 @@ namespace Eternity
     bool CreateWindow(int width, int height, const std::string& title);
     void DestroyWindow();
 
+    int GetWindowWidth();
+    int GetWindowHeight();
     GLFWwindow* GetCurrentWindow();
 }

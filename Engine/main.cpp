@@ -6,6 +6,8 @@
 #include <functional>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
+#include <glm/gtx/transform.hpp>
 
 #include "Window.hpp"
 #include "VulkanHelper.hpp"
@@ -70,6 +72,7 @@ class VulkanRenderer
 
         VkDeviceMemory              m_VertexBufferMemory    = VK_NULL_HANDLE;
         VkPipeline                  m_MeshPipeline          = VK_NULL_HANDLE;
+        VkPipelineLayout            m_MeshPipelineLayout    = VK_NULL_HANDLE;
         Mesh                        m_Mesh                  = {};
 
         void InitInstance();
@@ -140,7 +143,7 @@ void VulkanRenderer::Draw()
 
     VkClearValue clearValue;
 	float flash = std::abs(std::sin(m_FrameNumber / 120.f));
-	clearValue.color = { { 0.0f, 0.0f, flash, 1.0f } };
+	clearValue.color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
 
 	//start the main renderpass. 
 	//We will use the clear color from above, and the framebuffer of the index the swapchain gave us
@@ -161,16 +164,30 @@ void VulkanRenderer::Draw()
     rpBeginCI.renderArea.extent      = m_SwapchainExtent;
 
     vkCmdBeginRenderPass(m_CommandBuffer, &rpBeginCI, VK_SUBPASS_CONTENTS_INLINE);
-        // //once we start adding rendering commands, they will go here
-        // vkCmdBindPipeline(m_CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_Pipeline);
-        // vkCmdDraw(m_CommandBuffer, 3, 1, 0, 0);
-
         vkCmdBindPipeline(m_CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_MeshPipeline);
 
         //bind the mesh vertex buffer with offset 0
         VkDeviceSize offset = 0;
         vkCmdBindVertexBuffers(m_CommandBuffer, 0, 1, &m_Mesh.vertexBuffer, &offset);
+        // make a model view matrix for rendering the object
+        // camera position
+        glm::vec3 camPos = { 0.f,0.f,-2.f };
 
+        glm::mat4 view = glm::translate(glm::mat4(1.f), camPos);
+        //camera projection
+        glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)Eternity::GetWindowWidth() / (float)Eternity::GetWindowHeight(), 0.1f, 200.0f);
+        projection[1][1] *= -1;
+        //model rotation
+        glm::mat4 model = glm::rotate(glm::mat4{ 1.0f }, glm::radians(m_FrameNumber * 0.1f), glm::vec3(0, 1, 0));
+
+        //calculate final mesh matrix
+        glm::mat4 mesh_matrix = projection * view * model;
+
+        MeshPushConstants constants;
+        constants.renderMatrix = mesh_matrix;
+
+        //upload the matrix to the GPU via pushconstants
+        vkCmdPushConstants(m_CommandBuffer, m_MeshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshPushConstants), &constants);
         //we can now draw the mesh
         vkCmdDraw(m_CommandBuffer, m_Mesh.vertices.size(), 1, 0, 0);
     vkCmdEndRenderPass(m_CommandBuffer);
@@ -493,6 +510,24 @@ void VulkanRenderer::CreatePipeline()
 	pipelineBuilder.vertexInputInfo.pVertexBindingDescriptions = vertexDescription.bindings.data();
 	pipelineBuilder.vertexInputInfo.vertexBindingDescriptionCount = vertexDescription.bindings.size();
 
+    // we start from just the default empty pipeline layout info
+	VkPipelineLayoutCreateInfo meshPipelineLayoutCI = vkh::PipelineLayoutCreateInfo();
+    
+	// setup push constants
+	VkPushConstantRange pushConstant {};
+	// this push constant range starts at the beginning
+	pushConstant.offset     = 0;
+	// this push constant range takes up the size of a MeshPushConstants struct
+	pushConstant.size       = sizeof(MeshPushConstants);
+	// this push constant range is accessible only in the vertex shader
+	pushConstant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+	meshPipelineLayoutCI.pPushConstantRanges       = &pushConstant;
+	meshPipelineLayoutCI.pushConstantRangeCount    = 1;
+
+    auto res = vkCreatePipelineLayout(m_Device, &meshPipelineLayoutCI, nullptr, &m_MeshPipelineLayout);
+    vkh::Check(res, "PipelineLayot create failed");
+
 	//clear the shader stages for the builder
 	pipelineBuilder.shaderStages.clear();
 
@@ -500,6 +535,7 @@ void VulkanRenderer::CreatePipeline()
 
     pipelineBuilder.shaderStages.push_back(vkh::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, meshVertShader));
     pipelineBuilder.shaderStages.push_back(vkh::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, triangleFragShader));
+    pipelineBuilder.pipelineLayout = m_MeshPipelineLayout;
     m_MeshPipeline = pipelineBuilder.BuildPipeline(m_Device, m_RenderPass);
 
     vkDestroyShaderModule(m_Device, meshVertShader, nullptr);
@@ -511,6 +547,7 @@ void VulkanRenderer::CreatePipeline()
         vkDestroyPipeline(m_Device, m_MeshPipeline, nullptr);
         vkDestroyPipeline(m_Device, m_Pipeline, nullptr);
         vkDestroyPipelineLayout(m_Device, m_PipelineLayout, nullptr);
+        vkDestroyPipelineLayout(m_Device, m_MeshPipelineLayout, nullptr);
     });
 }
 
@@ -536,7 +573,7 @@ void VulkanRenderer::UploadMesh(Mesh& mesh)
 	bufferInfo.size = mesh.vertices.size() * sizeof(Vertex);
 	//this buffer is going to be used as a Vertex Buffer
 	bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-    // bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     vkCreateBuffer(m_Device, &bufferInfo, nullptr, &mesh.vertexBuffer);
 

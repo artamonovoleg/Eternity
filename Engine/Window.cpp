@@ -19,6 +19,20 @@ namespace Eternity
         glfwTerminate();
     }
 
+    int GetWindowWidth()
+    {
+        int width;
+        glfwGetWindowSize(pWindow, &width, nullptr);
+        return width;
+    }
+
+    int GetWindowHeight()
+    {
+        int height;
+        glfwGetWindowSize(pWindow, nullptr, &height);
+        return height;
+    }
+
     GLFWwindow* GetCurrentWindow()
     {
         return pWindow;
