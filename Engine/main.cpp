@@ -29,11 +29,19 @@ class VulkanRenderer
         VkCommandPool               m_CommandPool           = VK_NULL_HANDLE;
         VkCommandBuffer             m_CommandBuffer         = VK_NULL_HANDLE;
 
+        VkRenderPass                m_RenderPass            = VK_NULL_HANDLE;
+        std::vector<VkFramebuffer>  m_Framebuffers          = {};
+
+        // render loop
+        VkSemaphore                 m_PresentSemaphore      = VK_NULL_HANDLE;
+        
         void InitInstance();
         void CreateSurface();
         void CreateDevice();
         void CreateSwapchain();
         void InitCommands();
+        void CreateRenderPass();
+        void CreateFramebuffers();
     public:
         void InitVulkan();
         void DeinitVulkan();
@@ -46,10 +54,15 @@ void VulkanRenderer::InitVulkan()
     CreateDevice();
     CreateSwapchain();
     InitCommands();
+    CreateRenderPass();
+    CreateFramebuffers();
 }
 
 void VulkanRenderer::DeinitVulkan()
 {
+    for (const auto& framebuffer : m_Framebuffers)
+        vkDestroyFramebuffer(m_Device, framebuffer, nullptr);
+    vkDestroyRenderPass(m_Device, m_RenderPass, nullptr);
     vkDestroyCommandPool(m_Device, m_CommandPool, nullptr);
     for (const auto& imageView : m_SwapchainImageViews)
         vkDestroyImageView(m_Device, imageView, nullptr);
@@ -131,6 +144,84 @@ void VulkanRenderer::InitCommands()
 
     res = vkAllocateCommandBuffers(m_Device, &cmdAllocCI, &m_CommandBuffer);
     vkh::Check(res, "Command buffer allocate failed");
+}
+
+void VulkanRenderer::CreateRenderPass()
+{
+    // the renderpass will use this color attachment.
+	VkAttachmentDescription colorAttachment 
+    {
+	    // the attachment will have the format needed by the swapchain
+	    .format         = m_SwapchainImageFormat,
+	    // 1 sample, we won't be doing MSAA
+	    .samples        = VK_SAMPLE_COUNT_1_BIT,
+	    // Clear when this attachment is loaded
+	    .loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR,
+	    // keep the attachment stored when the renderpass ends
+	    .storeOp        = VK_ATTACHMENT_STORE_OP_STORE,
+	    // don't care about stencil
+	    .stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+	    .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+	    // don't know or care about the starting layout of the attachment
+	    .initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED,
+	    // after the renderpass ends, the image has to be on a layout ready for display
+	    .finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+    };
+
+    VkAttachmentReference coloAttachmentRef
+    {
+	    // attachment number will index into the pAttachments array in the parent renderpass itself
+	    .attachment = 0,
+	    .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+    };
+
+	// create 1 subpass, which is the minimum you can do
+	VkSubpassDescription subpass
+    {
+        .pipelineBindPoint      = VK_PIPELINE_BIND_POINT_GRAPHICS,
+        .colorAttachmentCount   = 1,
+        .pColorAttachments      = &coloAttachmentRef
+    };
+
+    VkRenderPassCreateInfo renderPassCI
+    {
+        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+        //connect the color attachment to the info
+        .attachmentCount = 1,
+        .pAttachments = &colorAttachment,
+        //connect the subpass to the info
+        .subpassCount = 1,
+        .pSubpasses = &subpass
+    };
+	
+	auto res = vkCreateRenderPass(m_Device, &renderPassCI, nullptr, &m_RenderPass);
+    vkh::Check(res, "RenderPass create failed");
+}
+
+void VulkanRenderer::CreateFramebuffers()
+{
+    // create the framebuffers for the swapchain images. This will connect the render-pass to the images for rendering
+	VkFramebufferCreateInfo frambufferCI
+    {
+        .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+
+        .renderPass         = m_RenderPass,
+        .attachmentCount    = 1,
+        .width              = m_SwapchainExtent.width,
+        .height             = m_SwapchainExtent.height,
+        .layers             = 1
+    };
+
+	//grab how many images we have in the swapchain
+	const uint32_t swapchainImageCount = m_SwapchainImages.size();
+	m_Framebuffers = std::vector<VkFramebuffer>(swapchainImageCount);
+
+	//create framebuffers for each of the swapchain image views
+	for (int i = 0; i < swapchainImageCount; i++) 
+    {
+		frambufferCI.pAttachments = &m_SwapchainImageViews[i];
+		vkh::Check(vkCreateFramebuffer(m_Device, &frambufferCI, nullptr, &m_Framebuffers[i]), "Framebuffer create failed");
+	}
 }
 
 int main(int, char **) 
