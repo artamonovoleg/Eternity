@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include <cmath>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
@@ -33,8 +34,11 @@ class VulkanRenderer
         std::vector<VkFramebuffer>  m_Framebuffers          = {};
 
         // render loop
+        float                       m_FrameNumber           = 0;
         VkSemaphore                 m_PresentSemaphore      = VK_NULL_HANDLE;
-        
+        VkSemaphore                 m_RenderSemaphore       = VK_NULL_HANDLE;
+        VkFence                     m_RenderFence           = VK_NULL_HANDLE;
+
         void InitInstance();
         void CreateSurface();
         void CreateDevice();
@@ -42,9 +46,12 @@ class VulkanRenderer
         void InitCommands();
         void CreateRenderPass();
         void CreateFramebuffers();
+        void CreateSyncObjects();
+        void DestroySyncObjects();
     public:
         void InitVulkan();
         void DeinitVulkan();
+        void Draw();
 };
 
 void VulkanRenderer::InitVulkan()
@@ -56,10 +63,12 @@ void VulkanRenderer::InitVulkan()
     InitCommands();
     CreateRenderPass();
     CreateFramebuffers();
+    CreateSyncObjects();
 }
 
 void VulkanRenderer::DeinitVulkan()
 {
+    DestroySyncObjects();
     for (const auto& framebuffer : m_Framebuffers)
         vkDestroyFramebuffer(m_Device, framebuffer, nullptr);
     vkDestroyRenderPass(m_Device, m_RenderPass, nullptr);
@@ -71,6 +80,55 @@ void VulkanRenderer::DeinitVulkan()
     vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr);
     vkh::DestroyDebugUtilsMessengerEXT(m_Instance, m_DebugMessenger, nullptr);
     vkDestroyInstance(m_Instance, nullptr);
+}
+
+void VulkanRenderer::Draw()
+{
+    vkh::Check(vkWaitForFences(m_Device, 1, &m_RenderFence, true, std::numeric_limits<uint64_t>::max()), "Wait for fences failed");
+    vkh::Check(vkResetFences(m_Device, 1, &m_RenderFence), "Reset fence failed");
+
+    uint32_t swapchainImageIndex;
+    vkh::Check(vkAcquireNextImageKHR(m_Device, m_Swapchain, std::numeric_limits<uint64_t>::max(), m_PresentSemaphore, nullptr, &swapchainImageIndex));
+
+    // time to begin rendering commands
+    vkh::Check(vkResetCommandBuffer(m_CommandBuffer, 0));
+
+    VkCommandBufferBeginInfo cmdBeginCI
+    {
+        .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags              = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+        .pInheritanceInfo   = nullptr
+    };
+
+    vkh::Check(vkBeginCommandBuffer(m_CommandBuffer, &cmdBeginCI));
+
+    VkClearValue clearValue;
+	float flash = std::abs(std::sin(m_FrameNumber / 120.f));
+	clearValue.color = { { 0.0f, 0.0f, flash, 1.0f } };
+
+	//start the main renderpass. 
+	//We will use the clear color from above, and the framebuffer of the index the swapchain gave us
+	VkRenderPassBeginInfo rpBeginCI
+    {
+        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+
+        .renderPass             = m_RenderPass,
+        .framebuffer            = m_Framebuffers[swapchainImageIndex],
+
+        //connect clear values
+        .clearValueCount = 1,
+        .pClearValues = &clearValue
+    };
+
+    rpBeginCI.renderArea.offset.x    = 0;
+    rpBeginCI.renderArea.offset.y    = 0;
+    rpBeginCI.renderArea.extent      = m_SwapchainExtent;
+
+    vkCmdBeginRenderPass(m_CommandBuffer, &rpBeginCI, VK_SUBPASS_CONTENTS_INLINE);
+
+    vkCmdEndRenderPass(m_CommandBuffer);
+
+    vkh::Check(vkEndCommandBuffer(m_CommandBuffer));
 }
 
 void VulkanRenderer::InitInstance()
@@ -224,6 +282,40 @@ void VulkanRenderer::CreateFramebuffers()
 	}
 }
 
+void VulkanRenderer::CreateSyncObjects()
+{
+    // create syncronization objects
+
+	VkFenceCreateInfo fenceCI
+    {
+    	.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+        // we want to create the fence with the Create Signaled flag, so we can wait on it before using it on a GPU command (for the first frame)
+	    .flags = VK_FENCE_CREATE_SIGNALED_BIT
+    };
+
+	auto res = vkCreateFence(m_Device, &fenceCI, nullptr, &m_RenderFence);
+    vkh::Check(res, "Fence create failed");
+
+	//for the semaphores we don't need any flags
+	VkSemaphoreCreateInfo semaphoreCI
+    {
+	    .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+	    .flags = 0
+    };
+
+	res = vkCreateSemaphore(m_Device, &semaphoreCI, nullptr, &m_PresentSemaphore);
+    vkh::Check(res, "Present semaphore create failed");
+	res = vkCreateSemaphore(m_Device, &semaphoreCI, nullptr, &m_RenderSemaphore);
+    vkh::Check(res, "Render semaphore create failed");
+}
+
+void VulkanRenderer::DestroySyncObjects()
+{
+    vkDestroySemaphore(m_Device, m_RenderSemaphore, nullptr);
+    vkDestroySemaphore(m_Device, m_PresentSemaphore, nullptr);
+    vkDestroyFence(m_Device, m_RenderFence, nullptr);
+}
+
 int main(int, char **) 
 {
     Eternity::CreateWindow(800, 600, "Eternity");
@@ -233,6 +325,7 @@ int main(int, char **)
 
     while (!glfwWindowShouldClose(Eternity::GetCurrentWindow()))
     {
+        renderer.Draw();
         glfwPollEvents();
     }
 
