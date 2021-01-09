@@ -15,19 +15,25 @@ class VulkanRenderer
         VkDevice                    m_Device            = VK_NULL_HANDLE;
         VkSurfaceKHR                m_Surface           = VK_NULL_HANDLE;
 
-        VkQueue                     m_GraphicsQueue     = VK_NULL_HANDLE;
-        VkQueue                     m_PresentQueue      = VK_NULL_HANDLE;
-
         VkSwapchainKHR              m_Swapchain             = VK_NULL_HANDLE;
         std::vector<VkImage>        m_SwapchainImages       = {};
         VkFormat                    m_SwapchainImageFormat  = {};
         VkExtent2D                  m_SwapchainExtent       = {};
         std::vector<VkImageView>    m_SwapchainImageViews   = {};
 
+        VkQueue                     m_GraphicsQueue         = VK_NULL_HANDLE;
+        uint32_t                    m_GraphicsQueueFamily   = 0; 
+        VkQueue                     m_PresentQueue          = VK_NULL_HANDLE;
+        uint32_t                    m_PresentQueueFamily    = 0;
+
+        VkCommandPool               m_CommandPool           = VK_NULL_HANDLE;
+        VkCommandBuffer             m_CommandBuffer         = VK_NULL_HANDLE;
+
         void InitInstance();
         void CreateSurface();
         void CreateDevice();
         void CreateSwapchain();
+        void InitCommands();
     public:
         void InitVulkan();
         void DeinitVulkan();
@@ -39,10 +45,12 @@ void VulkanRenderer::InitVulkan()
     CreateSurface();
     CreateDevice();
     CreateSwapchain();
+    InitCommands();
 }
 
 void VulkanRenderer::DeinitVulkan()
 {
+    vkDestroyCommandPool(m_Device, m_CommandPool, nullptr);
     for (const auto& imageView : m_SwapchainImageViews)
         vkDestroyImageView(m_Device, imageView, nullptr);
     vkDestroySwapchainKHR(m_Device, m_Swapchain, nullptr);
@@ -79,8 +87,10 @@ void VulkanRenderer::CreateDevice()
     m_Device    = vkh::BuildDevice(m_GPU, m_Surface);
 
     auto indices = vkh::FindQueueFamilies(m_GPU, m_Surface);
-    vkGetDeviceQueue(m_Device, indices.graphicsFamily.value(), 0, &m_GraphicsQueue);
-    vkGetDeviceQueue(m_Device,  indices.presentFamily.value(), 0, &m_PresentQueue);
+    m_GraphicsQueueFamily = indices.graphicsFamily.value();
+    m_PresentQueueFamily = indices.presentFamily.value();
+    vkGetDeviceQueue(m_Device, m_GraphicsQueueFamily, 0, &m_GraphicsQueue);
+    vkGetDeviceQueue(m_Device, m_PresentQueueFamily, 0, &m_PresentQueue);
 }
 
 void VulkanRenderer::CreateSwapchain()
@@ -92,6 +102,35 @@ void VulkanRenderer::CreateSwapchain()
     m_SwapchainImageFormat              = swachain_ret.imageFormat;
     m_SwapchainExtent                   = swachain_ret.extent;
     m_SwapchainImageViews               = swachain_ret.imageViews;
+}
+
+void VulkanRenderer::InitCommands()
+{
+    VkCommandPoolCreateInfo commandPoolCI
+    {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        //we also want the pool to allow for resetting of individual command buffers
+        .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+        //the command pool will be one that can submit graphics commands
+        .queueFamilyIndex = m_GraphicsQueueFamily
+    };
+
+	auto res = vkCreateCommandPool(m_Device, &commandPoolCI, nullptr, &m_CommandPool);
+    vkh::Check(res, "Command pool create failed");
+
+    VkCommandBufferAllocateInfo cmdAllocCI
+    {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        //commands will be made from our commandPool
+        .commandPool = m_CommandPool,
+        // command level is Primary
+        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        //we will allocate 1 command buffer
+        .commandBufferCount = 1
+    };
+
+    res = vkAllocateCommandBuffers(m_Device, &cmdAllocCI, &m_CommandBuffer);
+    vkh::Check(res, "Command buffer allocate failed");
 }
 
 int main(int, char **) 
