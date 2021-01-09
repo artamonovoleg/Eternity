@@ -30,10 +30,11 @@ namespace vkh
 
     struct Swapchain
     {
-        VkSwapchainKHR          swapchain   = VK_NULL_HANDLE;
-        std::vector<VkImage>    images      = {};
-        VkFormat                format      = {};
-        VkExtent2D              extent      = {};
+        VkSwapchainKHR              swapchain   = VK_NULL_HANDLE;
+        std::vector<VkImage>        images      = {};
+        VkFormat                    imageFormat = {};
+        VkExtent2D                  extent      = {};
+        std::vector<VkImageView>    imageViews  = {};
     };
 
     bool                                            IsVulkanDebugEnabled();

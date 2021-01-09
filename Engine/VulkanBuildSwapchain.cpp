@@ -75,6 +75,34 @@ namespace vkh
         return details;
     }
 
+    void                                            CreateSwapchainImageViews(const VkDevice& device, Swapchain& swapchain)
+    {
+        swapchain.imageViews.resize(swapchain.images.size());
+        for (size_t i = 0; i < swapchain.images.size(); i++) 
+        {
+            VkImageViewCreateInfo imageViewCI
+            {
+                .sType                              = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+                .image                              = swapchain.images[i],
+                .viewType                           = VK_IMAGE_VIEW_TYPE_2D,
+                .format                             = swapchain.imageFormat
+            };
+
+            imageViewCI.components.r                       = VK_COMPONENT_SWIZZLE_IDENTITY;
+            imageViewCI.components.g                       = VK_COMPONENT_SWIZZLE_IDENTITY;
+            imageViewCI.components.b                       = VK_COMPONENT_SWIZZLE_IDENTITY;
+            imageViewCI.components.a                       = VK_COMPONENT_SWIZZLE_IDENTITY;
+            imageViewCI.subresourceRange.aspectMask        = VK_IMAGE_ASPECT_COLOR_BIT;
+            imageViewCI.subresourceRange.baseMipLevel      = 0;
+            imageViewCI.subresourceRange.levelCount        = 1;
+            imageViewCI.subresourceRange.baseArrayLayer    = 0;
+            imageViewCI.subresourceRange.layerCount        = 1;
+
+            auto res = vkCreateImageView(device, &imageViewCI, nullptr, &swapchain.imageViews[i]);
+            Check(res, "ImageView create failed");
+        }
+    }
+
     Swapchain                                       BuildSwapchain(const VkPhysicalDevice& physicalDevice, const VkSurfaceKHR& surface, const VkDevice& device)
     {
         Swapchain       swapchain   = {};
@@ -130,8 +158,10 @@ namespace vkh
         swapchain.images.resize(imageCount);
         vkGetSwapchainImagesKHR(device, swapchain.swapchain, &imageCount, swapchain.images.data());
 
-        swapchain.format    = surfaceFormat.format;
+        swapchain.imageFormat    = surfaceFormat.format;
         swapchain.extent    = extent;
+
+        CreateSwapchainImageViews(device, swapchain);
 
         return swapchain;
     }

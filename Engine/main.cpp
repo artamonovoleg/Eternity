@@ -22,6 +22,7 @@ class VulkanRenderer
         std::vector<VkImage>        m_SwapchainImages       = {};
         VkFormat                    m_SwapchainImageFormat  = {};
         VkExtent2D                  m_SwapchainExtent       = {};
+        std::vector<VkImageView>    m_SwapchainImageViews   = {};
 
         void InitInstance();
         void CreateSurface();
@@ -42,6 +43,8 @@ void VulkanRenderer::InitVulkan()
 
 void VulkanRenderer::DeinitVulkan()
 {
+    for (const auto& imageView : m_SwapchainImageViews)
+        vkDestroyImageView(m_Device, imageView, nullptr);
     vkDestroySwapchainKHR(m_Device, m_Swapchain, nullptr);
     vkDestroyDevice(m_Device, nullptr);
     vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr);
@@ -86,8 +89,9 @@ void VulkanRenderer::CreateSwapchain()
     m_Swapchain = swachain_ret.swapchain;
 
     m_SwapchainImages                   = swachain_ret.images;
-    m_SwapchainImageFormat              = swachain_ret.format;
+    m_SwapchainImageFormat              = swachain_ret.imageFormat;
     m_SwapchainExtent                   = swachain_ret.extent;
+    m_SwapchainImageViews               = swachain_ret.imageViews;
 }
 
 int main(int, char **) 
