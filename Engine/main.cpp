@@ -34,7 +34,7 @@ class VulkanRenderer
         std::vector<VkFramebuffer>  m_Framebuffers          = {};
 
         // render loop
-        float                       m_FrameNumber           = 0;
+        int                         m_FrameNumber           = 0;
         VkSemaphore                 m_PresentSemaphore      = VK_NULL_HANDLE;
         VkSemaphore                 m_RenderSemaphore       = VK_NULL_HANDLE;
         VkFence                     m_RenderFence           = VK_NULL_HANDLE;
@@ -84,11 +84,11 @@ void VulkanRenderer::DeinitVulkan()
 
 void VulkanRenderer::Draw()
 {
-    vkh::Check(vkWaitForFences(m_Device, 1, &m_RenderFence, true, std::numeric_limits<uint64_t>::max()), "Wait for fences failed");
+    vkh::Check(vkWaitForFences(m_Device, 1, &m_RenderFence, true, 1000000000), "Wait for fences failed");
     vkh::Check(vkResetFences(m_Device, 1, &m_RenderFence), "Reset fence failed");
 
     uint32_t swapchainImageIndex;
-    vkh::Check(vkAcquireNextImageKHR(m_Device, m_Swapchain, std::numeric_limits<uint64_t>::max(), m_PresentSemaphore, nullptr, &swapchainImageIndex));
+    vkh::Check(vkAcquireNextImageKHR(m_Device, m_Swapchain, 1000000000, m_PresentSemaphore, nullptr, &swapchainImageIndex));
 
     // time to begin rendering commands
     vkh::Check(vkResetCommandBuffer(m_CommandBuffer, 0));
@@ -129,6 +129,53 @@ void VulkanRenderer::Draw()
     vkCmdEndRenderPass(m_CommandBuffer);
 
     vkh::Check(vkEndCommandBuffer(m_CommandBuffer));
+
+    //prepare the submission to the queue. 
+	//we want to wait on the _presentSemaphore, as that semaphore is signaled when the swapchain is ready
+	//we will signal the _renderSemaphore, to signal that rendering has finished
+
+	VkSubmitInfo submit 
+    {
+	    .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO
+    };
+
+	VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+	submit.pWaitDstStageMask = &waitStage;
+
+	submit.waitSemaphoreCount = 1;
+	submit.pWaitSemaphores = &m_PresentSemaphore;
+
+	submit.signalSemaphoreCount = 1;
+	submit.pSignalSemaphores = &m_RenderSemaphore;
+
+	submit.commandBufferCount = 1;
+	submit.pCommandBuffers = &m_CommandBuffer;
+
+	//submit command buffer to the queue and execute it.
+	// m_RenderFence will now block until the graphic commands finish execution
+	vkh::Check(vkQueueSubmit(m_GraphicsQueue, 1, &submit, m_RenderFence), "Submit queue failed");
+
+    // this will put the image we just rendered into the visible window.
+	// we want to wait on the _renderSemaphore for that, 
+	// as it's necessary that drawing commands have finished before the image is displayed to the user
+	VkPresentInfoKHR presentI
+    {
+        .sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores    = &m_RenderSemaphore,
+
+        .swapchainCount     = 1,
+        .pSwapchains        = &m_Swapchain,
+
+        .pImageIndices = &swapchainImageIndex
+    };
+
+	vkh::Check(vkQueuePresentKHR(m_GraphicsQueue, &presentI));
+
+	//increase the number of frames drawn
+	m_FrameNumber++;
 }
 
 void VulkanRenderer::InitInstance()
