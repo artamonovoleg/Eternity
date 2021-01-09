@@ -75,9 +75,9 @@ namespace vkh
         return details;
     }
 
-    VkSwapchainKHR                                  BuildSwapchain(const VkPhysicalDevice& physicalDevice, const VkSurfaceKHR& surface, const VkDevice& device)
+    Swapchain                                       BuildSwapchain(const VkPhysicalDevice& physicalDevice, const VkSurfaceKHR& surface, const VkDevice& device)
     {
-        VkSwapchainKHR  swapchain   = VK_NULL_HANDLE;
+        Swapchain       swapchain   = {};
 
         SwapchainSupportDetails swapchainSupport    = QuerySwapchainSupport(physicalDevice, surface);
 
@@ -123,8 +123,15 @@ namespace vkh
 
         swapchainCI.oldSwapchain = VK_NULL_HANDLE;
 
-        auto res = vkCreateSwapchainKHR(device, &swapchainCI, nullptr, &swapchain);
+        auto res = vkCreateSwapchainKHR(device, &swapchainCI, nullptr, &swapchain.swapchain);
         vkh::Check(res, "Swapchain create failed");
+
+        vkGetSwapchainImagesKHR(device, swapchain.swapchain, &imageCount, nullptr);
+        swapchain.images.resize(imageCount);
+        vkGetSwapchainImagesKHR(device, swapchain.swapchain, &imageCount, swapchain.images.data());
+
+        swapchain.format    = surfaceFormat.format;
+        swapchain.extent    = extent;
 
         return swapchain;
     }

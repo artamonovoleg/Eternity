@@ -28,6 +28,14 @@ namespace vkh
         std::vector<VkPresentModeKHR>   presentModes;
     };
 
+    struct Swapchain
+    {
+        VkSwapchainKHR          swapchain   = VK_NULL_HANDLE;
+        std::vector<VkImage>    images      = {};
+        VkFormat                format      = {};
+        VkExtent2D              extent      = {};
+    };
+
     bool                                            IsVulkanDebugEnabled();
 
     void                                            Check(VkResult result, const std::string& msg = "");
@@ -51,5 +59,5 @@ namespace vkh
     VkPresentModeKHR                                ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
     VkExtent2D                                      ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
     SwapchainSupportDetails                         QuerySwapchainSupport(const VkPhysicalDevice& device, const VkSurfaceKHR& surface);
-    VkSwapchainKHR                                  BuildSwapchain(const VkPhysicalDevice& physicalDevice, const VkSurfaceKHR& surface, const VkDevice& device);
+    Swapchain                                       BuildSwapchain(const VkPhysicalDevice& physicalDevice, const VkSurfaceKHR& surface, const VkDevice& device);
 }

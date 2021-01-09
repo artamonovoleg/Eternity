@@ -82,24 +82,12 @@ void VulkanRenderer::CreateDevice()
 
 void VulkanRenderer::CreateSwapchain()
 {
-    vkh::SwapchainSupportDetails swapchainSupport = vkh::QuerySwapchainSupport(m_GPU, m_Surface);
+    auto swachain_ret = vkh::BuildSwapchain(m_GPU, m_Surface, m_Device);
+    m_Swapchain = swachain_ret.swapchain;
 
-    VkSurfaceFormatKHR surfaceFormat    = vkh::ChooseSwapSurfaceFormat(swapchainSupport.formats);
-    VkPresentModeKHR presentMode        = vkh::ChooseSwapPresentMode(swapchainSupport.presentModes);
-    VkExtent2D extent                   = vkh::ChooseSwapExtent(swapchainSupport.capabilities);
-
-    uint32_t imageCount = swapchainSupport.capabilities.minImageCount + 1;
-    if (swapchainSupport.capabilities.maxImageCount > 0 && imageCount > swapchainSupport.capabilities.maxImageCount) 
-        imageCount = swapchainSupport.capabilities.maxImageCount;
-
-    m_Swapchain = vkh::BuildSwapchain(m_GPU, m_Surface, m_Device);
-
-    vkGetSwapchainImagesKHR(m_Device, m_Swapchain, &imageCount, nullptr);
-    m_SwapchainImages.resize(imageCount);
-    vkGetSwapchainImagesKHR(m_Device, m_Swapchain, &imageCount, m_SwapchainImages.data());
-
-    m_SwapchainImageFormat              = surfaceFormat.format;
-    m_SwapchainExtent                   = extent;
+    m_SwapchainImages                   = swachain_ret.images;
+    m_SwapchainImageFormat              = swachain_ret.format;
+    m_SwapchainExtent                   = swachain_ret.extent;
 }
 
 int main(int, char **) 
