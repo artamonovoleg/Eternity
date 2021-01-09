@@ -1,11 +1,13 @@
 #include <iostream>
 #include <vector>
 #include <cmath>
+#include <cstring>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
 #include "Window.hpp"
 #include "VulkanHelper.hpp"
+#include "Mesh.hpp"
 
 class VulkanRenderer
 {
@@ -42,6 +44,10 @@ class VulkanRenderer
         VkPipeline                  m_Pipeline              = VK_NULL_HANDLE;
         VkPipelineLayout            m_PipelineLayout        = VK_NULL_HANDLE;
 
+        VkDeviceMemory              m_VertexBufferMemory    = VK_NULL_HANDLE;
+        VkPipeline                  m_MeshPipeline          = VK_NULL_HANDLE;
+        Mesh                        m_Mesh                  = {};
+
         void InitInstance();
         void CreateSurface();
         void CreateDevice();
@@ -52,6 +58,9 @@ class VulkanRenderer
         void CreateSyncObjects();
         void DestroySyncObjects();
         void CreatePipeline();
+
+        void LoadMeshes();
+        void UploadMesh(Mesh& mesh);
     public:
         void InitVulkan();
         void DeinitVulkan();
@@ -69,6 +78,7 @@ void VulkanRenderer::InitVulkan()
     CreateFramebuffers();
     CreateSyncObjects();
     CreatePipeline();
+    LoadMeshes();
 }
 
 void VulkanRenderer::DeinitVulkan()
@@ -79,12 +89,17 @@ void VulkanRenderer::DeinitVulkan()
     vkDestroyCommandPool(m_Device, m_CommandPool, nullptr);
     for (const auto& framebuffer : m_Framebuffers)
         vkDestroyFramebuffer(m_Device, framebuffer, nullptr);
+    vkDestroyPipeline(m_Device, m_MeshPipeline, nullptr);
     vkDestroyPipeline(m_Device, m_Pipeline, nullptr);
     vkDestroyPipelineLayout(m_Device, m_PipelineLayout, nullptr);
     vkDestroyRenderPass(m_Device, m_RenderPass, nullptr);
     for (const auto& imageView : m_SwapchainImageViews)
         vkDestroyImageView(m_Device, imageView, nullptr);
     vkDestroySwapchainKHR(m_Device, m_Swapchain, nullptr);
+
+    vkDestroyBuffer(m_Device, m_Mesh.vertexBuffer, nullptr);
+    vkFreeMemory(m_Device, m_VertexBufferMemory, nullptr);
+
     vkDestroyDevice(m_Device, nullptr);
     vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr);
     vkh::DestroyDebugUtilsMessengerEXT(m_Instance, m_DebugMessenger, nullptr);
@@ -134,9 +149,18 @@ void VulkanRenderer::Draw()
     rpBeginCI.renderArea.extent      = m_SwapchainExtent;
 
     vkCmdBeginRenderPass(m_CommandBuffer, &rpBeginCI, VK_SUBPASS_CONTENTS_INLINE);
-        //once we start adding rendering commands, they will go here
-        vkCmdBindPipeline(m_CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_Pipeline);
-        vkCmdDraw(m_CommandBuffer, 3, 1, 0, 0);
+        // //once we start adding rendering commands, they will go here
+        // vkCmdBindPipeline(m_CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_Pipeline);
+        // vkCmdDraw(m_CommandBuffer, 3, 1, 0, 0);
+
+        vkCmdBindPipeline(m_CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_MeshPipeline);
+
+        //bind the mesh vertex buffer with offset 0
+        VkDeviceSize offset = 0;
+        vkCmdBindVertexBuffers(m_CommandBuffer, 0, 1, &m_Mesh.vertexBuffer, &offset);
+
+        //we can now draw the mesh
+        vkCmdDraw(m_CommandBuffer, m_Mesh.vertices.size(), 1, 0, 0);
     vkCmdEndRenderPass(m_CommandBuffer);
 
     vkh::Check(vkEndCommandBuffer(m_CommandBuffer));
@@ -415,12 +439,95 @@ void VulkanRenderer::CreatePipeline()
 	pipelineBuilder.colorBlendAttachment = vkh::ColorBlendAttachmentState();		
 	//use the triangle layout we created
 	pipelineBuilder.pipelineLayout = m_PipelineLayout;
-
-	//finally build the pipeline
+    //finally build the pipeline
 	m_Pipeline = pipelineBuilder.BuildPipeline(m_Device, m_RenderPass);
 
+    //build the mesh pipeline
+	VertexInputDescription vertexDescription = Vertex::GetVertexDescription();
+
+	//connect the pipeline builder vertex input info to the one we get from Vertex
+	pipelineBuilder.vertexInputInfo.pVertexAttributeDescriptions = vertexDescription.attributes.data();
+	pipelineBuilder.vertexInputInfo.vertexAttributeDescriptionCount = vertexDescription.attributes.size();
+
+	pipelineBuilder.vertexInputInfo.pVertexBindingDescriptions = vertexDescription.bindings.data();
+	pipelineBuilder.vertexInputInfo.vertexBindingDescriptionCount = vertexDescription.bindings.size();
+
+	//clear the shader stages for the builder
+	pipelineBuilder.shaderStages.clear();
+
+    VkShaderModule meshVertShader = vkh::CreateShaderModule(m_Device, "../Engine/shaders/tri_mesh.spv");
+
+    pipelineBuilder.shaderStages.push_back(vkh::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, meshVertShader));
+    pipelineBuilder.shaderStages.push_back(vkh::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, triangleFragShader));
+    m_MeshPipeline = pipelineBuilder.BuildPipeline(m_Device, m_RenderPass);
+
+    vkDestroyShaderModule(m_Device, meshVertShader, nullptr);
     vkDestroyShaderModule(m_Device, triangleFragShader, nullptr);
     vkDestroyShaderModule(m_Device, triangleVertShader, nullptr);
+}
+
+uint32_t FindMemoryType(const VkPhysicalDevice& device, uint32_t typeFilter, VkMemoryPropertyFlags properties) 
+{
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(device, &memProperties);
+
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) 
+    {
+        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) 
+            return i;
+    }
+
+    throw std::runtime_error("failed to find suitable memory type!");
+}
+
+void VulkanRenderer::UploadMesh(Mesh& mesh)
+{
+    VkBufferCreateInfo bufferInfo = {};
+	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	//this is the total size, in bytes, of the buffer we are allocating
+	bufferInfo.size = mesh.vertices.size() * sizeof(Vertex);
+	//this buffer is going to be used as a Vertex Buffer
+	bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    // bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    vkCreateBuffer(m_Device, &bufferInfo, nullptr, &mesh.vertexBuffer);
+
+
+    VkMemoryRequirements memRequirements;
+    vkGetBufferMemoryRequirements(m_Device, mesh.vertexBuffer, &memRequirements);
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = FindMemoryType(m_GPU, memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+    auto res = vkAllocateMemory(m_Device, &allocInfo, nullptr, &m_VertexBufferMemory);
+    vkh::Check(res, "Memory allocate failed");
+    vkBindBufferMemory(m_Device, mesh.vertexBuffer, m_VertexBufferMemory, 0);
+
+    void* data;
+    vkMapMemory(m_Device, m_VertexBufferMemory, 0, bufferInfo.size, 0, &data);
+    std::memcpy(data, mesh.vertices.data(), mesh.vertices.size() * sizeof(Vertex));
+    vkUnmapMemory(m_Device, m_VertexBufferMemory);
+}
+
+void VulkanRenderer::LoadMeshes()
+{
+    m_Mesh.vertices.resize(3);
+
+	//vertex positions
+	m_Mesh.vertices[0].position = { 1.f, 1.f, 0.0f };
+	m_Mesh.vertices[1].position = {-1.f, 1.f, 0.0f };
+	m_Mesh.vertices[2].position = { 0.f,-1.f, 0.0f };
+
+	//vertex colors, all green
+	m_Mesh.vertices[0].color = { 0.f, 1.f, 0.0f }; //pure green
+	m_Mesh.vertices[1].color = { 0.f, 1.f, 0.0f }; //pure green
+	m_Mesh.vertices[2].color = { 0.f, 1.f, 0.0f }; //pure green
+	
+	//we don't care about the vertex normals
+
+	UploadMesh(m_Mesh);
 }
 
 int main(int, char **) 
