@@ -39,6 +39,9 @@ class VulkanRenderer
         VkSemaphore                 m_RenderSemaphore       = VK_NULL_HANDLE;
         VkFence                     m_RenderFence           = VK_NULL_HANDLE;
 
+        VkPipeline                  m_Pipeline              = VK_NULL_HANDLE;
+        VkPipelineLayout            m_PipelineLayout        = VK_NULL_HANDLE;
+
         void InitInstance();
         void CreateSurface();
         void CreateDevice();
@@ -48,6 +51,7 @@ class VulkanRenderer
         void CreateFramebuffers();
         void CreateSyncObjects();
         void DestroySyncObjects();
+        void CreatePipeline();
     public:
         void InitVulkan();
         void DeinitVulkan();
@@ -64,15 +68,20 @@ void VulkanRenderer::InitVulkan()
     CreateRenderPass();
     CreateFramebuffers();
     CreateSyncObjects();
+    CreatePipeline();
 }
 
 void VulkanRenderer::DeinitVulkan()
 {
+    vkDeviceWaitIdle(m_Device);
+
     DestroySyncObjects();
+    vkDestroyCommandPool(m_Device, m_CommandPool, nullptr);
     for (const auto& framebuffer : m_Framebuffers)
         vkDestroyFramebuffer(m_Device, framebuffer, nullptr);
+    vkDestroyPipeline(m_Device, m_Pipeline, nullptr);
+    vkDestroyPipelineLayout(m_Device, m_PipelineLayout, nullptr);
     vkDestroyRenderPass(m_Device, m_RenderPass, nullptr);
-    vkDestroyCommandPool(m_Device, m_CommandPool, nullptr);
     for (const auto& imageView : m_SwapchainImageViews)
         vkDestroyImageView(m_Device, imageView, nullptr);
     vkDestroySwapchainKHR(m_Device, m_Swapchain, nullptr);
@@ -125,7 +134,9 @@ void VulkanRenderer::Draw()
     rpBeginCI.renderArea.extent      = m_SwapchainExtent;
 
     vkCmdBeginRenderPass(m_CommandBuffer, &rpBeginCI, VK_SUBPASS_CONTENTS_INLINE);
-
+        //once we start adding rendering commands, they will go here
+        vkCmdBindPipeline(m_CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_Pipeline);
+        vkCmdDraw(m_CommandBuffer, 3, 1, 0, 0);
     vkCmdEndRenderPass(m_CommandBuffer);
 
     vkh::Check(vkEndCommandBuffer(m_CommandBuffer));
@@ -361,6 +372,55 @@ void VulkanRenderer::DestroySyncObjects()
     vkDestroySemaphore(m_Device, m_RenderSemaphore, nullptr);
     vkDestroySemaphore(m_Device, m_PresentSemaphore, nullptr);
     vkDestroyFence(m_Device, m_RenderFence, nullptr);
+}
+
+void VulkanRenderer::CreatePipeline()
+{
+    VkShaderModule triangleVertShader = vkh::CreateShaderModule(m_Device, "../Engine/shaders/triangleVert.spv");
+    VkShaderModule triangleFragShader = vkh::CreateShaderModule(m_Device, "../Engine/shaders/triangleFrag.spv");
+
+    VkPipelineLayoutCreateInfo pipelineLayoutCI = vkh::PipelineLayoutCreateInfo();
+    vkCreatePipelineLayout(m_Device, &pipelineLayoutCI, nullptr, &m_PipelineLayout);
+
+    //build the stage-create-info for both vertex and fragment stages. This lets the pipeline know the shader modules per stage
+	vkh::PipelineBuilder pipelineBuilder;
+
+	pipelineBuilder.shaderStages.push_back(vkh::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, triangleVertShader));
+	pipelineBuilder.shaderStages.push_back(vkh::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, triangleFragShader));
+
+
+	//vertex input controls how to read vertices from vertex buffers. We aren't using it yet
+	pipelineBuilder.vertexInputInfo = vkh::VertexInputStateCreateInfo();
+	
+	//input assembly is the configuration for drawing triangle lists, strips, or individual points.
+	//we are just going to draw triangle list
+	pipelineBuilder.inputAssembly = vkh::InputAssemblyCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+
+	//build viewport and scissor from the swapchain extents
+	pipelineBuilder.viewport.x          = 0.0f;
+	pipelineBuilder.viewport.y          = 0.0f;
+	pipelineBuilder.viewport.width      = static_cast<float>(m_SwapchainExtent.width);
+	pipelineBuilder.viewport.height     = static_cast<float>(m_SwapchainExtent.height);
+	pipelineBuilder.viewport.minDepth   = 0.0f;
+	pipelineBuilder.viewport.maxDepth   = 1.0f;
+	
+	pipelineBuilder.scissor.offset = { 0, 0 };
+	pipelineBuilder.scissor.extent = m_SwapchainExtent;
+
+	//configure the rasterizer to draw filled triangles
+	pipelineBuilder.rasterizer = vkh::RasterizationStateCreateInfo(VK_POLYGON_MODE_FILL);
+	//we don't use multisampling, so just run the default one
+	pipelineBuilder.multisampling = vkh::MultisamplingStateCreateInfo();
+	//a single blend attachment with no blending and writing to RGBA
+	pipelineBuilder.colorBlendAttachment = vkh::ColorBlendAttachmentState();		
+	//use the triangle layout we created
+	pipelineBuilder.pipelineLayout = m_PipelineLayout;
+
+	//finally build the pipeline
+	m_Pipeline = pipelineBuilder.BuildPipeline(m_Device, m_RenderPass);
+
+    vkDestroyShaderModule(m_Device, triangleFragShader, nullptr);
+    vkDestroyShaderModule(m_Device, triangleVertShader, nullptr);
 }
 
 int main(int, char **) 

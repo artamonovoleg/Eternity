@@ -61,4 +61,30 @@ namespace vkh
     VkExtent2D                                      ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
     SwapchainSupportDetails                         QuerySwapchainSupport(const VkPhysicalDevice& device, const VkSurfaceKHR& surface);
     Swapchain                                       BuildSwapchain(const VkPhysicalDevice& physicalDevice, const VkSurfaceKHR& surface, const VkDevice& device);
+
+    VkShaderModule                                  CreateShaderModule(const VkDevice& device, const std::string& filename);
+
+    class PipelineBuilder 
+    {
+        public:
+            std::vector<VkPipelineShaderStageCreateInfo>    shaderStages;
+            VkPipelineVertexInputStateCreateInfo            vertexInputInfo;
+            VkPipelineInputAssemblyStateCreateInfo          inputAssembly;
+            VkViewport                                      viewport;
+            VkRect2D                                        scissor;
+            VkPipelineRasterizationStateCreateInfo          rasterizer;
+            VkPipelineColorBlendAttachmentState             colorBlendAttachment;
+            VkPipelineMultisampleStateCreateInfo            multisampling;
+            VkPipelineLayout                                pipelineLayout;
+
+            VkPipeline                              BuildPipeline(const VkDevice& device, const VkRenderPass& pass);
+    };
+
+    VkPipelineShaderStageCreateInfo                 PipelineShaderStageCreateInfo(const VkShaderStageFlagBits& stage, const VkShaderModule& shaderModule);
+    VkPipelineVertexInputStateCreateInfo            VertexInputStateCreateInfo();
+    VkPipelineInputAssemblyStateCreateInfo          InputAssemblyCreateInfo(const VkPrimitiveTopology& topology);
+    VkPipelineRasterizationStateCreateInfo          RasterizationStateCreateInfo(const VkPolygonMode& polygonMode);
+    VkPipelineMultisampleStateCreateInfo            MultisamplingStateCreateInfo();
+    VkPipelineColorBlendAttachmentState             ColorBlendAttachmentState();
+    VkPipelineLayoutCreateInfo                      PipelineLayoutCreateInfo();
 }
