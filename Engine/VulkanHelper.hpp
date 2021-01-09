@@ -10,6 +10,24 @@
 
 namespace vkh
 {
+    struct QueueFamilyIndices 
+    {
+        std::optional<uint32_t> graphicsFamily;
+        std::optional<uint32_t> presentFamily;
+
+        bool isComplete() 
+        {
+            return graphicsFamily.has_value() && presentFamily.has_value();
+        }
+    };
+
+    struct SwapchainSupportDetails 
+    {
+        VkSurfaceCapabilitiesKHR        capabilities;
+        std::vector<VkSurfaceFormatKHR> formats;
+        std::vector<VkPresentModeKHR>   presentModes;
+    };
+
     bool                                            IsVulkanDebugEnabled();
 
     void                                            Check(VkResult result, const std::string& msg = "");
@@ -25,17 +43,13 @@ namespace vkh
     //          debugEnabled - VkDebugUtilsMessengerEXT creates only if true, if false = VK_NULL_HANDLE
     std::pair<VkInstance, VkDebugUtilsMessengerEXT> BuildInstance(const VkApplicationInfo& appInfo, bool debugEnabled);
 
-    struct QueueFamilyIndices 
-    {
-        std::optional<uint32_t> graphicsFamily;
+    QueueFamilyIndices                              FindQueueFamilies(const VkPhysicalDevice& device, const VkSurfaceKHR& surface);
+    VkPhysicalDevice                                SelectPhysicalDevice(const VkInstance& instance, const VkSurfaceKHR& surface);
+    VkDevice                                        BuildDevice(const VkPhysicalDevice& physicalDevice, const VkSurfaceKHR& surface);
 
-        bool isComplete() 
-        {
-            return graphicsFamily.has_value();
-        }
-    };
-
-    QueueFamilyIndices                              FindQueueFamilies(VkPhysicalDevice device);
-    VkPhysicalDevice                                SelectPhysicalDevice(const VkInstance& instance);
-    VkDevice                                        BuildDevice(const VkPhysicalDevice& physicalDevice);
+    VkSurfaceFormatKHR                              ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
+    VkPresentModeKHR                                ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
+    VkExtent2D                                      ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+    SwapchainSupportDetails                         QuerySwapchainSupport(const VkPhysicalDevice& device, const VkSurfaceKHR& surface);
+    VkSwapchainKHR                                  BuildSwapchain(const VkPhysicalDevice& physicalDevice, const VkSurfaceKHR& surface, const VkDevice& device);
 }
