@@ -7,16 +7,19 @@ add_compile_options(-g)
 include_directories(vendor/glfw/include
                     vendor/glm
                     vendor/VulkanHelper/includes
-                    Core 
-                    Events 
+                    Core
+                    Events
+                    Graphics 
                     Input 
-                    Utils)
+                    Utils
+                    ./)
 
 add_executable(eternity main.cpp
                         Events/EventSystem.cpp
                         Input/Input.cpp
                         Core/Window.cpp
                         Mesh.cpp 
-                        Camera.cpp)
+                        Graphics/Camera.cpp
+                        Graphics/VulkanRenderer.cpp)
 
 target_link_libraries(eternity vulkan glfw ${GLFW_LIBRARIES} glm tinyobjloader VulkanHelper)
