@@ -9,16 +9,13 @@
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtx/transform.hpp>
+#include "../vendor/VulkanHelper/includes/VulkanHelper.hpp"
 
 #include "Window.hpp"
-#include "VulkanHelper.hpp"
 #include "Mesh.hpp"
 #include "Camera.hpp"
 
 using namespace Eternity;
-
-
-
 
 // timing
 float deltaTime = 0.0f;	// time between current frame and last frame
@@ -315,7 +312,7 @@ void VulkanRenderer::CreateDevice()
 
 void VulkanRenderer::CreateSwapchain()
 {
-    auto swachain_ret = vkh::BuildSwapchain(m_GPU, m_Surface, m_Device);
+    auto swachain_ret = vkh::BuildSwapchain(Eternity::GetCurrentWindow(), m_GPU, m_Surface, m_Device);
     m_Swapchain = swachain_ret.swapchain;
 
     m_SwapchainImages                   = swachain_ret.images;

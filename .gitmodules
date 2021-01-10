@@ -7,3 +7,6 @@
 [submodule "vendor/imgui"]
 	path = vendor/imgui
 	url = https://github.com/ocornut/imgui.git
+[submodule "vendor/VulkanHelper"]
+	path = vendor/VulkanHelper
+	url = https://github.com/artamonovoleg/VulkanHelper.git
