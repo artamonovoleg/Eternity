@@ -9,4 +9,4 @@ include_directories(vendor/glfw/include
 
 add_executable(eternity main.cpp Window.cpp VulkanUtils.cpp VulkanBuildInstance.cpp VulkanBuildDevice.cpp VulkanBuildSwapchain.cpp VulkanShader.cpp VulkanBuildPipeline.cpp Mesh.cpp)
 
-target_link_libraries(eternity vulkan glfw ${GLFW_LIBRARIES} glm)
+target_link_libraries(eternity vulkan glfw ${GLFW_LIBRARIES} glm tinyobjloader)

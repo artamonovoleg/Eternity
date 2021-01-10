@@ -2,6 +2,7 @@
 #include <glm/glm.hpp>
 #include <vulkan/vulkan.h>
 #include <vector>
+#include <string>
 
 struct VertexInputDescription 
 {
@@ -31,5 +32,7 @@ struct Mesh
 	std::vector<Vertex> vertices        = {};
 
 	VkBuffer            vertexBuffer    = VK_NULL_HANDLE;
+
+	bool 				LoadFromOBJ(const std::string& filename);
 };
 

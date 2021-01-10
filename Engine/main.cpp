@@ -4,6 +4,7 @@
 #include <cstring>
 #include <deque>
 #include <functional>
+#include <tiny_obj_loader.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
@@ -178,7 +179,7 @@ void VulkanRenderer::Draw()
         glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)Eternity::GetWindowWidth() / (float)Eternity::GetWindowHeight(), 0.1f, 200.0f);
         projection[1][1] *= -1;
         //model rotation
-        glm::mat4 model = glm::rotate(glm::mat4{ 1.0f }, glm::radians(m_FrameNumber * 0.1f), glm::vec3(0, 1, 0));
+        glm::mat4 model = glm::rotate(glm::mat4{ 1.0f }, glm::radians(m_FrameNumber * 0.01f), glm::vec3(0, 1, 0));
 
         //calculate final mesh matrix
         glm::mat4 mesh_matrix = projection * view * model;
@@ -603,20 +604,20 @@ void VulkanRenderer::UploadMesh(Mesh& mesh)
 
 void VulkanRenderer::LoadMeshes()
 {
-    m_Mesh.vertices.resize(3);
+    // m_Mesh.vertices.resize(3);
 
-	//vertex positions
-	m_Mesh.vertices[0].position = { 1.f, 1.f, 0.0f };
-	m_Mesh.vertices[1].position = {-1.f, 1.f, 0.0f };
-	m_Mesh.vertices[2].position = { 0.f,-1.f, 0.0f };
+	// //vertex positions
+	// m_Mesh.vertices[0].position = { 1.f, 1.f, 0.0f };
+	// m_Mesh.vertices[1].position = {-1.f, 1.f, 0.0f };
+	// m_Mesh.vertices[2].position = { 0.f,-1.f, 0.0f };
 
-	//vertex colors, all green
-	m_Mesh.vertices[0].color = { 0.f, 1.f, 0.0f }; //pure green
-	m_Mesh.vertices[1].color = { 0.f, 1.f, 0.0f }; //pure green
-	m_Mesh.vertices[2].color = { 0.f, 1.f, 0.0f }; //pure green
+	// //vertex colors, all green
+	// m_Mesh.vertices[0].color = { 0.f, 1.f, 0.0f }; //pure green
+	// m_Mesh.vertices[1].color = { 0.f, 1.f, 0.0f }; //pure green
+	// m_Mesh.vertices[2].color = { 0.f, 1.f, 0.0f }; //pure green
 	
 	//we don't care about the vertex normals
-
+    m_Mesh.LoadFromOBJ("../Engine/assets/monkey.obj");
 	UploadMesh(m_Mesh);
 }
 
