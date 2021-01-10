@@ -117,14 +117,7 @@ void VulkanRenderer::InitVulkan()
 void VulkanRenderer::DeinitVulkan()
 {
     vkDeviceWaitIdle(m_Device);
-
     m_DeletionQueue.Flush();
-    vkFreeMemory(m_Device, m_VertexBufferMemory, nullptr);
-
-    vkDestroyDevice(m_Device, nullptr);
-    vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr);
-    vkh::DestroyDebugUtilsMessengerEXT(m_Instance, m_DebugMessenger, nullptr);
-    vkDestroyInstance(m_Instance, nullptr);
 }
 
 void VulkanRenderer::Draw()
@@ -267,12 +260,22 @@ void VulkanRenderer::InitInstance()
     auto inst_ret       = vkh::BuildInstance(appInfo, true);
     m_Instance          = inst_ret.first;
     m_DebugMessenger    = inst_ret.second;
+
+    m_DeletionQueue.PushDeleter([&]()
+    {
+        vkh::DestroyDebugUtilsMessengerEXT(m_Instance, m_DebugMessenger, nullptr);
+        vkDestroyInstance(m_Instance, nullptr);
+    });
 }
 
 void VulkanRenderer::CreateSurface()
 {
     auto res = glfwCreateWindowSurface(m_Instance, Eternity::GetCurrentWindow(), nullptr, &m_Surface);
     vkh::Check(res, "Surface create failed");
+    m_DeletionQueue.PushDeleter([&]()
+    {
+        vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr);
+    });
 }
 
 void VulkanRenderer::CreateDevice()
@@ -285,6 +288,11 @@ void VulkanRenderer::CreateDevice()
     m_PresentQueueFamily = indices.presentFamily.value();
     vkGetDeviceQueue(m_Device, m_GraphicsQueueFamily, 0, &m_GraphicsQueue);
     vkGetDeviceQueue(m_Device, m_PresentQueueFamily, 0, &m_PresentQueue);
+
+    m_DeletionQueue.PushDeleter([&]()
+    {
+        vkDestroyDevice(m_Device, nullptr);
+    });
 }
 
 void VulkanRenderer::CreateSwapchain()
@@ -514,10 +522,10 @@ void VulkanRenderer::DestroySyncObjects()
 
 void VulkanRenderer::CreatePipeline()
 {
-    VkShaderModule meshVertShader = vkh::CreateShaderModule(m_Device, "../Engine/shaders/tri_mesh.spv");
-    VkShaderModule meshFragShader = vkh::CreateShaderModule(m_Device, "../Engine/shaders/triangleFrag.spv");
+    VkShaderModule meshVertShader = vkh::CreateShaderModule(m_Device, "../Engine/shaders/meshVert.spv");
+    VkShaderModule meshFragShader = vkh::CreateShaderModule(m_Device, "../Engine/shaders/meshFrag.spv");
 
-    //build the stage-create-info for both vertex and fragment stages. This lets the pipeline know the shader modules per stage
+    // build the stage-create-info for both vertex and fragment stages. This lets the pipeline know the shader modules per stage
 	vkh::PipelineBuilder pipelineBuilder;
 
     pipelineBuilder.shaderStages.push_back(vkh::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, meshVertShader));
@@ -542,15 +550,15 @@ void VulkanRenderer::CreatePipeline()
 	pipelineBuilder.scissor.extent = m_SwapchainExtent;
 
 	//configure the rasterizer to draw filled triangles
-	pipelineBuilder.rasterizer = vkh::RasterizationStateCreateInfo(VK_POLYGON_MODE_FILL);
+	pipelineBuilder.rasterizer              = vkh::RasterizationStateCreateInfo(VK_POLYGON_MODE_FILL);
 	//we don't use multisampling, so just run the default one
-	pipelineBuilder.multisampling = vkh::MultisamplingStateCreateInfo();
+	pipelineBuilder.multisampling           = vkh::MultisamplingStateCreateInfo();
 	//a single blend attachment with no blending and writing to RGBA
-	pipelineBuilder.colorBlendAttachment = vkh::ColorBlendAttachmentState();		
+	pipelineBuilder.colorBlendAttachment    = vkh::ColorBlendAttachmentState();		
 	//use the triangle layout we created
-	pipelineBuilder.pipelineLayout = m_PipelineLayout;
+	pipelineBuilder.pipelineLayout          = m_PipelineLayout;
     //finally build the pipeline
-    pipelineBuilder.depthStencil    = vkh::DepthStencilCreateInfo(true, true, VK_COMPARE_OP_LESS_OR_EQUAL);
+    pipelineBuilder.depthStencil            = vkh::DepthStencilCreateInfo(true, true, VK_COMPARE_OP_LESS_OR_EQUAL);
 
     //build the mesh pipeline
 	VertexInputDescription vertexDescription = Vertex::GetVertexDescription();
@@ -607,12 +615,12 @@ void VulkanRenderer::UploadMesh(Mesh& mesh)
     m_DeletionQueue.PushDeleter([=]()
     {
         vkDestroyBuffer(m_Device, mesh.vertexBuffer, nullptr);
+        vkFreeMemory(m_Device, m_VertexBufferMemory, nullptr);
     });
 }
 
 void VulkanRenderer::LoadMeshes()
 {
-	//we don't care about the vertex normals
     m_Mesh.LoadFromOBJ("../Engine/assets/diablo.obj");
 	UploadMesh(m_Mesh);
 }
