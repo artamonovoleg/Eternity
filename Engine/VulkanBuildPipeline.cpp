@@ -145,6 +145,7 @@ namespace vkh
         pipelineInfo.renderPass = pass;
         pipelineInfo.subpass = 0;
         pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+        pipelineInfo.pDepthStencilState = &depthStencil;
 
         auto res = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline);
         vkh::Check(res, "Pipeline create failed");

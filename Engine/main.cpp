@@ -76,6 +76,11 @@ class VulkanRenderer
         VkPipelineLayout            m_MeshPipelineLayout    = VK_NULL_HANDLE;
         Mesh                        m_Mesh                  = {};
 
+        VkImageView                 m_DepthImageView        = VK_NULL_HANDLE;
+        VkImage                     m_DepthImage            = VK_NULL_HANDLE;
+        VkDeviceMemory              m_DepthImageMemory      = VK_NULL_HANDLE;
+        VkFormat                    m_DepthFormat           = {};
+
         void InitInstance();
         void CreateSurface();
         void CreateDevice();
@@ -146,6 +151,10 @@ void VulkanRenderer::Draw()
 	float flash = std::abs(std::sin(m_FrameNumber / 120.f));
 	clearValue.color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
 
+    //clear depth at 1
+	VkClearValue depthClear;
+	depthClear.depthStencil.depth = 1.f;
+
 	//start the main renderpass. 
 	//We will use the clear color from above, and the framebuffer of the index the swapchain gave us
 	VkRenderPassBeginInfo rpBeginCI
@@ -156,9 +165,11 @@ void VulkanRenderer::Draw()
         .framebuffer            = m_Framebuffers[swapchainImageIndex],
 
         //connect clear values
-        .clearValueCount = 1,
-        .pClearValues = &clearValue
+        .clearValueCount = 2,
     };
+
+    VkClearValue clearValues[] = { clearValue, depthClear };
+    rpBeginCI.pClearValues = &clearValues[0];
 
     rpBeginCI.renderArea.offset.x    = 0;
     rpBeginCI.renderArea.offset.y    = 0;
@@ -286,8 +297,26 @@ void VulkanRenderer::CreateSwapchain()
     m_SwapchainExtent                   = swachain_ret.extent;
     m_SwapchainImageViews               = swachain_ret.imageViews;
 
-    m_DeletionQueue.PushDeleter([=]() 
+    VkExtent3D depthImageExtent
     {
+        .width      = m_SwapchainExtent.width,
+        .height     = m_SwapchainExtent.height,
+        .depth      = 1
+    };
+
+    m_DepthFormat = VK_FORMAT_D32_SFLOAT;
+    VkImageCreateInfo dimgCI = vkh::ImageCreateInfo(m_DepthFormat, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, depthImageExtent);
+
+    vkh::CreateImage(m_Device, m_GPU, m_SwapchainExtent.width, m_SwapchainExtent.height, m_DepthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_DepthImage, m_DepthImageMemory);
+
+    VkImageViewCreateInfo dviewCI = vkh::ImageViewCreateInfo(m_DepthFormat, m_DepthImage, VK_IMAGE_ASPECT_DEPTH_BIT);
+    vkCreateImageView(m_Device, &dviewCI, nullptr, &m_DepthImageView);
+
+    m_DeletionQueue.PushDeleter([=]() 
+    {   
+        vkFreeMemory(m_Device, m_DepthImageMemory, nullptr);
+        vkDestroyImage(m_Device, m_DepthImage, nullptr);
+        vkDestroyImageView(m_Device, m_DepthImageView, nullptr);
 		vkDestroySwapchainKHR(m_Device, m_Swapchain, nullptr);
 	});
 }
@@ -355,20 +384,39 @@ void VulkanRenderer::CreateRenderPass()
 	    .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
     };
 
+    VkAttachmentDescription depthAttachment = {};
+    // Depth attachment
+    depthAttachment.flags = 0;
+    depthAttachment.format = m_DepthFormat;
+    depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    VkAttachmentReference depthAttachmentRef = {};
+    depthAttachmentRef.attachment = 1;
+    depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
 	// create 1 subpass, which is the minimum you can do
 	VkSubpassDescription subpass
     {
         .pipelineBindPoint      = VK_PIPELINE_BIND_POINT_GRAPHICS,
         .colorAttachmentCount   = 1,
-        .pColorAttachments      = &coloAttachmentRef
+        .pColorAttachments      = &coloAttachmentRef,
+        .pDepthStencilAttachment = &depthAttachmentRef
     };
+
+    VkAttachmentDescription attachments[2] = { colorAttachment, depthAttachment };
 
     VkRenderPassCreateInfo renderPassCI
     {
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
         //connect the color attachment to the info
-        .attachmentCount = 1,
-        .pAttachments = &colorAttachment,
+        .attachmentCount = 2,
+        .pAttachments = &attachments[0],
         //connect the subpass to the info
         .subpassCount = 1,
         .pSubpasses = &subpass
@@ -404,7 +452,13 @@ void VulkanRenderer::CreateFramebuffers()
 	//create framebuffers for each of the swapchain image views
 	for (int i = 0; i < swapchainImageCount; i++) 
     {
-		frambufferCI.pAttachments = &m_SwapchainImageViews[i];
+        VkImageView attachments[2];
+        attachments[0] = m_SwapchainImageViews[i];
+        attachments[1] = m_DepthImageView;
+
+		frambufferCI.pAttachments       = attachments;
+        frambufferCI.attachmentCount    = 2;
+
 		vkh::Check(vkCreateFramebuffer(m_Device, &frambufferCI, nullptr, &m_Framebuffers[i]), "Framebuffer create failed");
 
         m_DeletionQueue.PushDeleter([=]() 
@@ -499,6 +553,7 @@ void VulkanRenderer::CreatePipeline()
 	//use the triangle layout we created
 	pipelineBuilder.pipelineLayout = m_PipelineLayout;
     //finally build the pipeline
+    pipelineBuilder.depthStencil    = vkh::DepthStencilCreateInfo(true, true, VK_COMPARE_OP_LESS_OR_EQUAL);
 	m_Pipeline = pipelineBuilder.BuildPipeline(m_Device, m_RenderPass);
 
     //build the mesh pipeline
@@ -537,6 +592,8 @@ void VulkanRenderer::CreatePipeline()
     pipelineBuilder.shaderStages.push_back(vkh::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, meshVertShader));
     pipelineBuilder.shaderStages.push_back(vkh::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, triangleFragShader));
     pipelineBuilder.pipelineLayout = m_MeshPipelineLayout;
+    pipelineBuilder.depthStencil    = vkh::DepthStencilCreateInfo(true, true, VK_COMPARE_OP_LESS_OR_EQUAL);
+
     m_MeshPipeline = pipelineBuilder.BuildPipeline(m_Device, m_RenderPass);
 
     vkDestroyShaderModule(m_Device, meshVertShader, nullptr);
@@ -550,20 +607,6 @@ void VulkanRenderer::CreatePipeline()
         vkDestroyPipelineLayout(m_Device, m_PipelineLayout, nullptr);
         vkDestroyPipelineLayout(m_Device, m_MeshPipelineLayout, nullptr);
     });
-}
-
-uint32_t FindMemoryType(const VkPhysicalDevice& device, uint32_t typeFilter, VkMemoryPropertyFlags properties) 
-{
-    VkPhysicalDeviceMemoryProperties memProperties;
-    vkGetPhysicalDeviceMemoryProperties(device, &memProperties);
-
-    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) 
-    {
-        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) 
-            return i;
-    }
-
-    throw std::runtime_error("failed to find suitable memory type!");
 }
 
 void VulkanRenderer::UploadMesh(Mesh& mesh)
@@ -585,7 +628,7 @@ void VulkanRenderer::UploadMesh(Mesh& mesh)
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = FindMemoryType(m_GPU, memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    allocInfo.memoryTypeIndex = vkh::FindMemoryType(m_GPU, memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
     auto res = vkAllocateMemory(m_Device, &allocInfo, nullptr, &m_VertexBufferMemory);
     vkh::Check(res, "Memory allocate failed");

@@ -64,6 +64,8 @@ namespace vkh
 
     VkShaderModule                                  CreateShaderModule(const VkDevice& device, const std::string& filename);
 
+    uint32_t FindMemoryType(const VkPhysicalDevice& device, uint32_t typeFilter, VkMemoryPropertyFlags properties);
+
     class PipelineBuilder 
     {
         public:
@@ -76,6 +78,7 @@ namespace vkh
             VkPipelineColorBlendAttachmentState             colorBlendAttachment;
             VkPipelineMultisampleStateCreateInfo            multisampling;
             VkPipelineLayout                                pipelineLayout;
+            VkPipelineDepthStencilStateCreateInfo           depthStencil;
 
             VkPipeline                              BuildPipeline(const VkDevice& device, const VkRenderPass& pass);
     };
@@ -87,4 +90,19 @@ namespace vkh
     VkPipelineMultisampleStateCreateInfo            MultisamplingStateCreateInfo();
     VkPipelineColorBlendAttachmentState             ColorBlendAttachmentState();
     VkPipelineLayoutCreateInfo                      PipelineLayoutCreateInfo();
+
+    
+    VkImageCreateInfo                               ImageCreateInfo(VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent);
+    VkImageViewCreateInfo                           ImageViewCreateInfo(VkFormat format, VkImage image, VkImageAspectFlags aspectFlags);
+    void                                            CreateImage(VkDevice& device, 
+                                                                VkPhysicalDevice& physicalDevice, 
+                                                                uint32_t width, uint32_t height, 
+                                                                VkFormat format, 
+                                                                VkImageTiling tiling, 
+                                                                VkImageUsageFlags usage, 
+                                                                VkMemoryPropertyFlags properties, 
+                                                                VkImage& image, 
+                                                                VkDeviceMemory& imageMemory);
+
+    VkPipelineDepthStencilStateCreateInfo           DepthStencilCreateInfo(bool bDepthTest, bool bDepthWrite, VkCompareOp compareOp);
 }
