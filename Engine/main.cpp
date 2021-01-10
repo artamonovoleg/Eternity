@@ -13,26 +13,37 @@
 #include "Window.hpp"
 #include "VulkanHelper.hpp"
 #include "Mesh.hpp"
+#include "Camera.hpp"
 
-struct DeletionQueue
+using namespace Eternity;
+
+
+
+
+// timing
+float deltaTime = 0.0f;	// time between current frame and last frame
+float lastFrame = 0.0f;
+
+class DeletionQueue
 {
-	std::deque<std::function<void()>> deletors;
-
-	void PushDeleter(std::function<void()>&& function) 
-    {
-		deletors.push_back(function);
-	}
-
-	void Flush() 
-    {
-		// reverse iterate the deletion queue to execute all the functions
-		for (auto it = deletors.rbegin(); it != deletors.rend(); it++) 
+    private:
+	    std::deque<std::function<void()>> deletors;
+    public:
+        void PushDeleter(std::function<void()>&& function) 
         {
-			(*it)(); //call functors
-		}
+            deletors.push_back(function);
+        }
 
-		deletors.clear();
-	}
+        void Flush() 
+        {
+            // reverse iterate the deletion queue to execute all the functions
+            for (auto it = deletors.rbegin(); it != deletors.rend(); it++) 
+            {
+                (*it)(); //call functors
+            }
+
+            deletors.clear();
+        }
 };
 
 class VulkanRenderer
@@ -81,6 +92,8 @@ class VulkanRenderer
         VkDeviceMemory              m_DepthImageMemory      = VK_NULL_HANDLE;
         VkFormat                    m_DepthFormat           = {};
 
+        // camera
+        Camera                      m_Camera                = glm::vec3(0.0f, 0.0f, 3.0f);
         void InitInstance();
         void CreateSurface();
         void CreateDevice();
@@ -122,6 +135,13 @@ void VulkanRenderer::DeinitVulkan()
 
 void VulkanRenderer::Draw()
 {
+    // per-frame time logic
+    // --------------------
+    float currentFrame = glfwGetTime();
+    deltaTime = currentFrame - lastFrame;
+    lastFrame = currentFrame;
+    m_Camera.Update(deltaTime);
+    
     vkh::Check(vkWaitForFences(m_Device, 1, &m_RenderFence, true, 1000000000), "Wait for fences failed");
     vkh::Check(vkResetFences(m_Device, 1, &m_RenderFence), "Reset fence failed");
 
@@ -176,14 +196,14 @@ void VulkanRenderer::Draw()
         vkCmdBindVertexBuffers(m_CommandBuffer, 0, 1, &m_Mesh.vertexBuffer, &offset);
         // make a model view matrix for rendering the object
         // camera position
-        glm::vec3 camPos = { 0.f,0.f,-2.f };
+        glm::vec3 camPos = { 0.f, 0.f, -2.f };
 
-        glm::mat4 view = glm::translate(glm::mat4(1.f), camPos);
+        glm::mat4 view = m_Camera.GetViewMatrix();
         //camera projection
         glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)Eternity::GetWindowWidth() / (float)Eternity::GetWindowHeight(), 0.1f, 200.0f);
         projection[1][1] *= -1;
         //model rotation
-        glm::mat4 model = glm::rotate(glm::mat4{ 1.0f }, glm::radians(m_FrameNumber * 0.01f), glm::vec3(0, 1, 0));
+        glm::mat4 model = glm::mat4(1.0f);
 
         //calculate final mesh matrix
         glm::mat4 mesh_matrix = projection * view * model;
@@ -625,17 +645,21 @@ void VulkanRenderer::LoadMeshes()
 	UploadMesh(m_Mesh);
 }
 
+#include "EventSystem.hpp"
+#include "Input.hpp"
+
 int main(int, char **) 
 {
     Eternity::CreateWindow(800, 600, "Eternity");
-
+    Eternity::EventSystem::Init();
+    Eternity::Input::Init();
     VulkanRenderer renderer;
     renderer.InitVulkan();
 
     while (!glfwWindowShouldClose(Eternity::GetCurrentWindow()))
     {
         renderer.Draw();
-        glfwPollEvents();
+        Eternity::EventSystem::PollEvents();
     }
 
     renderer.DeinitVulkan();
