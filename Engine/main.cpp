@@ -196,8 +196,6 @@ void VulkanRenderer::Draw()
         vkCmdBindVertexBuffers(m_CommandBuffer, 0, 1, &m_Mesh.vertexBuffer, &offset);
         // make a model view matrix for rendering the object
         // camera position
-        glm::vec3 camPos = { 0.f, 0.f, -2.f };
-
         glm::mat4 view = m_Camera.GetViewMatrix();
         //camera projection
         glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)Eternity::GetWindowWidth() / (float)Eternity::GetWindowHeight(), 0.1f, 200.0f);
