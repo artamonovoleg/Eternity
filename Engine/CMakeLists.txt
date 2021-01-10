@@ -7,6 +7,6 @@ add_compile_options(-g)
 include_directories(vendor/glfw/include
                     vendor/glm)
 
-add_executable(eternity main.cpp Window.cpp VulkanUtils.cpp VulkanBuildInstance.cpp VulkanBuildDevice.cpp VulkanBuildSwapchain.cpp VulkanShader.cpp VulkanBuildPipeline.cpp VulkanImage.cpp Mesh.cpp)
+add_executable(eternity main.cpp Window.cpp VulkanUtils.cpp VulkanBuildInstance.cpp VulkanBuildDevice.cpp VulkanBuildSwapchain.cpp VulkanShader.cpp VulkanBuildPipeline.cpp VulkanVertexBuffer.cpp VulkanImage.cpp Mesh.cpp)
 
 target_link_libraries(eternity vulkan glfw ${GLFW_LIBRARIES} glm tinyobjloader)

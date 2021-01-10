@@ -305,12 +305,13 @@ void VulkanRenderer::CreateSwapchain()
     };
 
     m_DepthFormat = VK_FORMAT_D32_SFLOAT;
-    VkImageCreateInfo dimgCI = vkh::ImageCreateInfo(m_DepthFormat, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, depthImageExtent);
+    VkImageCreateInfo dimgCI = vkh::ImageCreateInfo(depthImageExtent, m_DepthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
 
-    vkh::CreateImage(m_Device, m_GPU, m_SwapchainExtent.width, m_SwapchainExtent.height, m_DepthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_DepthImage, m_DepthImageMemory);
+    m_DepthImage = vkh::CreateImage(m_Device, m_GPU, dimgCI, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_DepthImageMemory);
 
     VkImageViewCreateInfo dviewCI = vkh::ImageViewCreateInfo(m_DepthFormat, m_DepthImage, VK_IMAGE_ASPECT_DEPTH_BIT);
-    vkCreateImageView(m_Device, &dviewCI, nullptr, &m_DepthImageView);
+    auto res = vkCreateImageView(m_Device, &dviewCI, nullptr, &m_DepthImageView);
+    vkh::Check(res, "Image view create failed");
 
     m_DeletionQueue.PushDeleter([=]() 
     {   
@@ -513,18 +514,14 @@ void VulkanRenderer::DestroySyncObjects()
 
 void VulkanRenderer::CreatePipeline()
 {
-    VkShaderModule triangleVertShader = vkh::CreateShaderModule(m_Device, "../Engine/shaders/triangleVert.spv");
-    VkShaderModule triangleFragShader = vkh::CreateShaderModule(m_Device, "../Engine/shaders/triangleFrag.spv");
-
-    VkPipelineLayoutCreateInfo pipelineLayoutCI = vkh::PipelineLayoutCreateInfo();
-    vkCreatePipelineLayout(m_Device, &pipelineLayoutCI, nullptr, &m_PipelineLayout);
+    VkShaderModule meshVertShader = vkh::CreateShaderModule(m_Device, "../Engine/shaders/tri_mesh.spv");
+    VkShaderModule meshFragShader = vkh::CreateShaderModule(m_Device, "../Engine/shaders/triangleFrag.spv");
 
     //build the stage-create-info for both vertex and fragment stages. This lets the pipeline know the shader modules per stage
 	vkh::PipelineBuilder pipelineBuilder;
 
-	pipelineBuilder.shaderStages.push_back(vkh::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, triangleVertShader));
-	pipelineBuilder.shaderStages.push_back(vkh::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, triangleFragShader));
-
+    pipelineBuilder.shaderStages.push_back(vkh::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, meshVertShader));
+	pipelineBuilder.shaderStages.push_back(vkh::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, meshFragShader));
 
 	//vertex input controls how to read vertices from vertex buffers. We aren't using it yet
 	pipelineBuilder.vertexInputInfo = vkh::VertexInputStateCreateInfo();
@@ -554,7 +551,6 @@ void VulkanRenderer::CreatePipeline()
 	pipelineBuilder.pipelineLayout = m_PipelineLayout;
     //finally build the pipeline
     pipelineBuilder.depthStencil    = vkh::DepthStencilCreateInfo(true, true, VK_COMPARE_OP_LESS_OR_EQUAL);
-	m_Pipeline = pipelineBuilder.BuildPipeline(m_Device, m_RenderPass);
 
     //build the mesh pipeline
 	VertexInputDescription vertexDescription = Vertex::GetVertexDescription();
@@ -584,58 +580,27 @@ void VulkanRenderer::CreatePipeline()
     auto res = vkCreatePipelineLayout(m_Device, &meshPipelineLayoutCI, nullptr, &m_MeshPipelineLayout);
     vkh::Check(res, "PipelineLayot create failed");
 
-	//clear the shader stages for the builder
-	pipelineBuilder.shaderStages.clear();
-
-    VkShaderModule meshVertShader = vkh::CreateShaderModule(m_Device, "../Engine/shaders/tri_mesh.spv");
-
-    pipelineBuilder.shaderStages.push_back(vkh::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, meshVertShader));
-    pipelineBuilder.shaderStages.push_back(vkh::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, triangleFragShader));
     pipelineBuilder.pipelineLayout = m_MeshPipelineLayout;
     pipelineBuilder.depthStencil    = vkh::DepthStencilCreateInfo(true, true, VK_COMPARE_OP_LESS_OR_EQUAL);
 
     m_MeshPipeline = pipelineBuilder.BuildPipeline(m_Device, m_RenderPass);
 
     vkDestroyShaderModule(m_Device, meshVertShader, nullptr);
-    vkDestroyShaderModule(m_Device, triangleFragShader, nullptr);
-    vkDestroyShaderModule(m_Device, triangleVertShader, nullptr);
+    vkDestroyShaderModule(m_Device, meshFragShader, nullptr);
 
     m_DeletionQueue.PushDeleter([=]() 
     {
         vkDestroyPipeline(m_Device, m_MeshPipeline, nullptr);
-        vkDestroyPipeline(m_Device, m_Pipeline, nullptr);
-        vkDestroyPipelineLayout(m_Device, m_PipelineLayout, nullptr);
         vkDestroyPipelineLayout(m_Device, m_MeshPipelineLayout, nullptr);
     });
 }
 
 void VulkanRenderer::UploadMesh(Mesh& mesh)
 {
-    VkBufferCreateInfo bufferInfo = {};
-	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	//this is the total size, in bytes, of the buffer we are allocating
-	bufferInfo.size = mesh.vertices.size() * sizeof(Vertex);
-	//this buffer is going to be used as a Vertex Buffer
-	bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    vkCreateBuffer(m_Device, &bufferInfo, nullptr, &mesh.vertexBuffer);
-
-
-    VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(m_Device, mesh.vertexBuffer, &memRequirements);
-
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = vkh::FindMemoryType(m_GPU, memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-    auto res = vkAllocateMemory(m_Device, &allocInfo, nullptr, &m_VertexBufferMemory);
-    vkh::Check(res, "Memory allocate failed");
-    vkBindBufferMemory(m_Device, mesh.vertexBuffer, m_VertexBufferMemory, 0);
+    mesh.vertexBuffer = vkh::CreateVertexBuffer(m_Device, m_GPU, mesh.vertices.size() * sizeof(Vertex), m_VertexBufferMemory);
 
     void* data;
-    vkMapMemory(m_Device, m_VertexBufferMemory, 0, bufferInfo.size, 0, &data);
+    vkMapMemory(m_Device, m_VertexBufferMemory, 0, mesh.vertices.size() * sizeof(Vertex), 0, &data);
     std::memcpy(data, mesh.vertices.data(), mesh.vertices.size() * sizeof(Vertex));
     vkUnmapMemory(m_Device, m_VertexBufferMemory);
 
@@ -647,20 +612,8 @@ void VulkanRenderer::UploadMesh(Mesh& mesh)
 
 void VulkanRenderer::LoadMeshes()
 {
-    // m_Mesh.vertices.resize(3);
-
-	// //vertex positions
-	// m_Mesh.vertices[0].position = { 1.f, 1.f, 0.0f };
-	// m_Mesh.vertices[1].position = {-1.f, 1.f, 0.0f };
-	// m_Mesh.vertices[2].position = { 0.f,-1.f, 0.0f };
-
-	// //vertex colors, all green
-	// m_Mesh.vertices[0].color = { 0.f, 1.f, 0.0f }; //pure green
-	// m_Mesh.vertices[1].color = { 0.f, 1.f, 0.0f }; //pure green
-	// m_Mesh.vertices[2].color = { 0.f, 1.f, 0.0f }; //pure green
-	
 	//we don't care about the vertex normals
-    m_Mesh.LoadFromOBJ("../Engine/assets/monkey.obj");
+    m_Mesh.LoadFromOBJ("../Engine/assets/diablo.obj");
 	UploadMesh(m_Mesh);
 }
 

@@ -83,6 +83,8 @@ namespace vkh
             VkPipeline                              BuildPipeline(const VkDevice& device, const VkRenderPass& pass);
     };
 
+    VkBuffer                                        CreateVertexBuffer(const VkDevice& device, const VkPhysicalDevice& physicalDevice, uint32_t size, VkDeviceMemory& memory);
+
     VkPipelineShaderStageCreateInfo                 PipelineShaderStageCreateInfo(const VkShaderStageFlagBits& stage, const VkShaderModule& shaderModule);
     VkPipelineVertexInputStateCreateInfo            VertexInputStateCreateInfo();
     VkPipelineInputAssemblyStateCreateInfo          InputAssemblyCreateInfo(const VkPrimitiveTopology& topology);
@@ -91,18 +93,8 @@ namespace vkh
     VkPipelineColorBlendAttachmentState             ColorBlendAttachmentState();
     VkPipelineLayoutCreateInfo                      PipelineLayoutCreateInfo();
 
-    
-    VkImageCreateInfo                               ImageCreateInfo(VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent);
+    VkImageCreateInfo                               ImageCreateInfo(const VkExtent3D& extent, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage);
+    VkImage                                         CreateImage(VkDevice& device, VkPhysicalDevice& physicalDevice, VkImageCreateInfo& imageCI, VkMemoryPropertyFlags properties, VkDeviceMemory& imageMemory);
     VkImageViewCreateInfo                           ImageViewCreateInfo(VkFormat format, VkImage image, VkImageAspectFlags aspectFlags);
-    void                                            CreateImage(VkDevice& device, 
-                                                                VkPhysicalDevice& physicalDevice, 
-                                                                uint32_t width, uint32_t height, 
-                                                                VkFormat format, 
-                                                                VkImageTiling tiling, 
-                                                                VkImageUsageFlags usage, 
-                                                                VkMemoryPropertyFlags properties, 
-                                                                VkImage& image, 
-                                                                VkDeviceMemory& imageMemory);
-
-    VkPipelineDepthStencilStateCreateInfo           DepthStencilCreateInfo(bool bDepthTest, bool bDepthWrite, VkCompareOp compareOp);
+    VkPipelineDepthStencilStateCreateInfo           DepthStencilCreateInfo(VkBool32 bDepthTest, VkBool32 bDepthWrite, VkCompareOp compareOp);
 }
