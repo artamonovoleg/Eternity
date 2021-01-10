@@ -1,6 +1,7 @@
 #include <cstring>
 #include <tiny_obj_loader.h>
 #include "VulkanRenderer.hpp"
+#include "VulkanDebugCallback.hpp"
 #include "../vendor/VulkanHelper/includes/VulkanHelper.hpp"
 
 
@@ -38,11 +39,11 @@ namespace Eternity
         lastFrame = currentFrame;
         m_Camera.Update(deltaTime);
         
-        vkh::Check(vkWaitForFences(m_Device, 1, &m_RenderFence, true, 1000000000), "Wait for fences failed");
+        vkh::Check(vkWaitForFences(m_Device, 1, &m_RenderFence, true, UINT64_MAX), "Wait for fences failed");
         vkh::Check(vkResetFences(m_Device, 1, &m_RenderFence), "Reset fence failed");
 
         uint32_t swapchainImageIndex;
-        vkh::Check(vkAcquireNextImageKHR(m_Device, m_Swapchain, 1000000000, m_PresentSemaphore, nullptr, &swapchainImageIndex));
+        vkh::Check(vkAcquireNextImageKHR(m_Device, m_Swapchain, UINT64_MAX, m_PresentSemaphore, nullptr, &swapchainImageIndex));
 
         // time to begin rendering commands
         vkh::Check(vkResetCommandBuffer(m_CommandBuffer, 0));
@@ -171,7 +172,7 @@ namespace Eternity
             .apiVersion     = VK_API_VERSION_1_2
         };
 
-        auto inst_ret       = vkh::BuildInstance(appInfo, true);
+        auto inst_ret       = vkh::BuildInstance(appInfo, true, Eternity::DebugCallback);
         m_Instance          = inst_ret.first;
         m_DebugMessenger    = inst_ret.second;
 
@@ -535,7 +536,7 @@ namespace Eternity
 
     void VulkanRenderer::LoadMeshes()
     {
-        m_Mesh.LoadFromOBJ("../Engine/assets/diablo.obj");
+        m_Mesh.LoadFromOBJ("../Engine/assets/monkey.obj");
         UploadMesh(m_Mesh);
     }
 }
