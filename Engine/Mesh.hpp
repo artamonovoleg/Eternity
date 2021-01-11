@@ -1,8 +1,9 @@
 #pragma once
-#include <glm/glm.hpp>
-#include <vulkan/vulkan.h>
+#include <memory>
 #include <vector>
 #include <string>
+#include <glm/glm.hpp>
+#include <vulkan/vulkan.h>
 
 struct VertexInputDescription 
 {
@@ -36,3 +37,15 @@ struct Mesh
 	bool 				LoadFromOBJ(const std::string& filename);
 };
 
+struct Material 
+{
+	VkPipeline 			pipeline;
+	VkPipelineLayout 	pipelineLayout;
+};
+
+struct RenderObject 
+{
+	std::shared_ptr<Mesh> 		mesh;
+	std::shared_ptr<Material> 	material;
+	glm::mat4 					transformMatrix;
+};

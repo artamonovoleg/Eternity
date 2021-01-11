@@ -2,7 +2,7 @@
 #include <tiny_obj_loader.h>
 #include "VulkanRenderer.hpp"
 #include "VulkanDebugCallback.hpp"
-#include "../vendor/VulkanHelper/includes/VulkanHelper.hpp"
+#include "VulkanHelper.hpp"
 
 
 float deltaTime = 0.0f;	// time between current frame and last frame
@@ -22,6 +22,7 @@ namespace Eternity
         CreateSyncObjects();
         CreatePipeline();
         LoadMeshes();
+        InitScene();
     }
 
     void VulkanRenderer::DeinitVulkan()
@@ -86,30 +87,31 @@ namespace Eternity
         rpBeginCI.renderArea.extent      = m_SwapchainExtent;
 
         vkCmdBeginRenderPass(m_CommandBuffer, &rpBeginCI, VK_SUBPASS_CONTENTS_INLINE);
-            vkCmdBindPipeline(m_CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_MeshPipeline);
+            // vkCmdBindPipeline(m_CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_MeshPipeline);
 
-            //bind the mesh vertex buffer with offset 0
-            VkDeviceSize offset = 0;
-            vkCmdBindVertexBuffers(m_CommandBuffer, 0, 1, &m_Mesh.vertexBuffer, &offset);
-            // make a model view matrix for rendering the object
-            // camera position
-            glm::mat4 view = m_Camera.GetViewMatrix();
-            //camera projection
-            glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)Eternity::GetWindowWidth() / (float)Eternity::GetWindowHeight(), 0.1f, 200.0f);
-            projection[1][1] *= -1;
-            //model rotation
-            glm::mat4 model = glm::mat4(1.0f);
+            // //bind the mesh vertex buffer with offset 0
+            // VkDeviceSize offset = 0;
+            // vkCmdBindVertexBuffers(m_CommandBuffer, 0, 1, &m_Mesh.vertexBuffer, &offset);
+            // // make a model view matrix for rendering the object
+            // // camera position
+            // glm::mat4 view = m_Camera.GetViewMatrix();
+            // //camera projection
+            // glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)Eternity::GetWindowWidth() / (float)Eternity::GetWindowHeight(), 0.1f, 200.0f);
+            // projection[1][1] *= -1;
+            // //model rotation
+            // glm::mat4 model = glm::mat4(1.0f);
 
-            //calculate final mesh matrix
-            glm::mat4 mesh_matrix = projection * view * model;
+            // //calculate final mesh matrix
+            // glm::mat4 mesh_matrix = projection * view * model;
 
-            MeshPushConstants constants;
-            constants.renderMatrix = mesh_matrix;
+            // MeshPushConstants constants;
+            // constants.renderMatrix = mesh_matrix;
 
-            //upload the matrix to the GPU via pushconstants
-            vkCmdPushConstants(m_CommandBuffer, m_MeshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshPushConstants), &constants);
-            //we can now draw the mesh
-            vkCmdDraw(m_CommandBuffer, m_Mesh.vertices.size(), 1, 0, 0);
+            // //upload the matrix to the GPU via pushconstants
+            // vkCmdPushConstants(m_CommandBuffer, m_MeshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshPushConstants), &constants);
+            // //we can now draw the mesh
+            // vkCmdDraw(m_CommandBuffer, m_Mesh.vertices.size(), 1, 0, 0);
+            DrawObjects(m_CommandBuffer, m_Renderables, m_Renderables.size());
         vkCmdEndRenderPass(m_CommandBuffer);
 
         vkh::Check(vkEndCommandBuffer(m_CommandBuffer));
@@ -176,7 +178,7 @@ namespace Eternity
         m_Instance          = inst_ret.first;
         m_DebugMessenger    = inst_ret.second;
 
-        m_DeletionQueue.PushDeleter([&]()
+        m_DeletionQueue.PushDeleter([=]()
         {
             vkh::DestroyDebugUtilsMessengerEXT(m_Instance, m_DebugMessenger, nullptr);
             vkDestroyInstance(m_Instance, nullptr);
@@ -187,7 +189,7 @@ namespace Eternity
     {
         auto res = glfwCreateWindowSurface(m_Instance, Eternity::GetCurrentWindow(), nullptr, &m_Surface);
         vkh::Check(res, "Surface create failed");
-        m_DeletionQueue.PushDeleter([&]()
+        m_DeletionQueue.PushDeleter([=]()
         {
             vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr);
         });
@@ -204,7 +206,7 @@ namespace Eternity
         vkGetDeviceQueue(m_Device, m_GraphicsQueueFamily, 0, &m_GraphicsQueue);
         vkGetDeviceQueue(m_Device, m_PresentQueueFamily, 0, &m_PresentQueue);
 
-        m_DeletionQueue.PushDeleter([&]()
+        m_DeletionQueue.PushDeleter([=]()
         {
             vkDestroyDevice(m_Device, nullptr);
         });
@@ -508,6 +510,8 @@ namespace Eternity
 
         m_MeshPipeline = pipelineBuilder.BuildPipeline(m_Device, m_RenderPass);
 
+        CreateMaterial(m_MeshPipeline, m_MeshPipelineLayout, "defaultmesh");
+
         vkDestroyShaderModule(m_Device, meshVertShader, nullptr);
         vkDestroyShaderModule(m_Device, meshFragShader, nullptr);
 
@@ -527,7 +531,7 @@ namespace Eternity
         std::memcpy(data, mesh.vertices.data(), mesh.vertices.size() * sizeof(Vertex));
         vkUnmapMemory(m_Device, m_VertexBufferMemory);
 
-        m_DeletionQueue.PushDeleter([=]()
+        m_DeletionQueue.PushDeleter([=, &mesh]()
         {
             vkDestroyBuffer(m_Device, mesh.vertexBuffer, nullptr);
             vkFreeMemory(m_Device, m_VertexBufferMemory, nullptr);
@@ -538,5 +542,95 @@ namespace Eternity
     {
         m_Mesh.LoadFromOBJ("../Engine/assets/monkey.obj");
         UploadMesh(m_Mesh);
+        m_Meshes["monkey"] = m_Mesh;
+    }
+
+    std::shared_ptr<Material> VulkanRenderer::CreateMaterial(VkPipeline pipeline, VkPipelineLayout layout, const std::string& name)
+    {
+        Material mat;
+        mat.pipeline = pipeline;
+        mat.pipelineLayout = layout;
+        m_Materials[name] = mat;
+        return std::make_shared<Material>(m_Materials[name]);
+    }
+
+    std::shared_ptr<Material> VulkanRenderer::GetMaterial(const std::string& name)
+    {
+        //search for the object, and return nullpointer if not found
+        auto it = m_Materials.find(name);
+        if (it == m_Materials.end()) 
+            return nullptr;
+        else 
+            return std::make_shared<Material>((*it).second);
+    }
+
+    std::shared_ptr<Mesh> VulkanRenderer::GetMesh(const std::string& name)
+    {
+        auto it = m_Meshes.find(name);
+        if (it == m_Meshes.end()) 
+            return nullptr;
+        else 
+            return std::make_shared<Mesh>((*it).second);
+    }
+
+    void VulkanRenderer::DrawObjects(VkCommandBuffer cmd, std::vector<RenderObject>& first, int count)
+    {
+        glm::mat4 view = m_Camera.GetViewMatrix();
+        //camera projection
+        glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)Eternity::GetWindowWidth() / (float)Eternity::GetWindowHeight(), 0.1f, 200.0f);
+        projection[1][1] *= -1;
+
+        std::shared_ptr<Mesh>       lastMesh = nullptr;
+        std::shared_ptr<Material>   lastMaterial = nullptr;
+
+        for (int i = 0; i < count; i++)
+        {
+            RenderObject& object = first[i];
+
+            //only bind the pipeline if it doesnt match with the already bound one
+            if (object.material != lastMaterial) 
+            {
+                vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipeline);
+                lastMaterial = object.material;
+            }
+
+            glm::mat4 model = object.transformMatrix;
+            //final render matrix, that we are calculating on the cpu
+            glm::mat4 meshMatrix = projection * m_Camera.GetViewMatrix() * model;
+
+            MeshPushConstants constants;
+            constants.renderMatrix = meshMatrix;
+
+            //upload the mesh to the GPU via pushconstants
+            vkCmdPushConstants(cmd, object.material->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshPushConstants), &constants);
+
+            //only bind the mesh if it's a different one from last bind
+            if (object.mesh != lastMesh) 
+            {
+                //bind the mesh vertex buffer with offset 0
+                VkDeviceSize offset = 0;
+                vkCmdBindVertexBuffers(cmd, 0, 1, &object.mesh->vertexBuffer, &offset);
+                lastMesh = object.mesh;
+            }
+
+            //we can now draw
+            vkCmdDraw(cmd, object.mesh->vertices.size(), 1, 0, 0);
+        }
+    }
+
+    void VulkanRenderer::InitScene()
+    {
+        RenderObject monkey{};
+        monkey.mesh             = GetMesh("monkey");
+        monkey.material         = GetMaterial("defaultmesh");
+        monkey.transformMatrix  = glm::mat4(1.0f);
+
+        m_Renderables.push_back(monkey);
+        glm::mat4 translation = glm::translate(glm::mat4(1.0f), glm::vec3(3, 0, 0));
+        monkey.transformMatrix = translation;
+        m_Renderables.push_back(monkey);
+        translation = glm::translate(glm::mat4(1.0f), glm::vec3(6, 0, 0));
+        monkey.transformMatrix = translation;
+        m_Renderables.push_back(monkey);
     }
 }

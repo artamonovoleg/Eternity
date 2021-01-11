@@ -4,9 +4,11 @@ set(CMAKE_CXX_STANDARD 17)
 
 add_compile_options(-g)
 
-include_directories(vendor/glfw/include
-                    vendor/glm
-                    vendor/VulkanHelper/includes
+set(VENDORS ../vendor/glfw/include
+            ../vendor/glm
+            ../vendor/VulkanHelper/includes)
+
+include_directories(${VENDORS}
                     Core
                     Events
                     Graphics 

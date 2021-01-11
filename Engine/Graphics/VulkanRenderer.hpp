@@ -56,6 +56,25 @@ namespace Eternity
 
             // camera
             Camera                      m_Camera                = glm::vec3(0.0f, 0.0f, 3.0f);
+
+            //default array of renderable objects
+            std::vector<RenderObject>                       m_Renderables;
+
+            std::unordered_map<std::string, Material>       m_Materials;
+            std::unordered_map<std::string, Mesh>           m_Meshes;
+
+
+            //create material and add it to the map
+            std::shared_ptr<Material>   CreateMaterial(VkPipeline pipeline, VkPipelineLayout layout, const std::string& name);
+
+            //returns nullptr if it can't be found
+            std::shared_ptr<Material>   GetMaterial(const std::string& name);
+
+            //returns nullptr if it can't be found
+            std::shared_ptr<Mesh>       GetMesh(const std::string& name);
+
+            void                        DrawObjects(VkCommandBuffer cmd, std::vector<RenderObject>& first, int count);
+
             void InitInstance();
             void CreateSurface();
             void CreateDevice();
@@ -69,6 +88,7 @@ namespace Eternity
 
             void LoadMeshes();
             void UploadMesh(Mesh& mesh);
+            void InitScene();
         public:
             void InitVulkan();
             void DeinitVulkan();
