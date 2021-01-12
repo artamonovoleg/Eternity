@@ -49,3 +49,10 @@ struct RenderObject
 	std::shared_ptr<Material> 	material;
 	glm::mat4 					transformMatrix;
 };
+
+struct GPUCameraData
+{
+	glm::mat4 view;
+	glm::mat4 projection;
+	glm::mat4 viewproj;
+};

@@ -8,6 +8,21 @@
 
 namespace Eternity
 {
+    struct FrameData 
+    {
+        VkSemaphore presentSemaphore;
+        VkSemaphore renderSemaphore;
+        VkFence     renderFence;	
+
+        VkCommandPool   commandPool;
+        VkCommandBuffer commandBuffer;
+
+        VkBuffer 		cameraBuffer;
+	    VkDescriptorSet globalDescriptor;
+    };
+
+    static constexpr unsigned int FRAME_OVERLAP = 2;
+
     class VulkanRenderer
     {
         private:
@@ -36,6 +51,7 @@ namespace Eternity
             
             DeletionQueue               m_DeletionQueue         = {};
             // render loop
+            FrameData                   m_Frames[FRAME_OVERLAP] = {};
             int                         m_FrameNumber           = 0;
             VkSemaphore                 m_PresentSemaphore      = VK_NULL_HANDLE;
             VkSemaphore                 m_RenderSemaphore       = VK_NULL_HANDLE;
@@ -54,6 +70,9 @@ namespace Eternity
             VkDeviceMemory              m_DepthImageMemory      = VK_NULL_HANDLE;
             VkFormat                    m_DepthFormat           = {};
 
+            std::vector<VkDeviceMemory> m_UniformBuffersMemory  = {};
+            VkDescriptorSetLayout       m_GlobalSetLayout       = VK_NULL_HANDLE;
+            VkDescriptorPool            m_DescriptorPool        = VK_NULL_HANDLE;
             // camera
             Camera                      m_Camera                = glm::vec3(0.0f, 0.0f, 3.0f);
 
@@ -63,6 +82,7 @@ namespace Eternity
             std::unordered_map<std::string, Material>       m_Materials;
             std::unordered_map<std::string, Mesh>           m_Meshes;
 
+            FrameData&                  GetCurrentFrame();
 
             //create material and add it to the map
             std::shared_ptr<Material>   CreateMaterial(VkPipeline pipeline, VkPipelineLayout layout, const std::string& name);
@@ -85,6 +105,7 @@ namespace Eternity
             void CreateSyncObjects();
             void DestroySyncObjects();
             void CreatePipeline();
+            void CreateDescriptors();
 
             void LoadMeshes();
             void UploadMesh(Mesh& mesh);

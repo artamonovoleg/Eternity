@@ -20,6 +20,7 @@ namespace Eternity
         CreateRenderPass();
         CreateFramebuffers();
         CreateSyncObjects();
+        CreateDescriptors();
         CreatePipeline();
         LoadMeshes();
         InitScene();
@@ -40,14 +41,14 @@ namespace Eternity
         lastFrame = currentFrame;
         m_Camera.Update(deltaTime);
         
-        vkh::Check(vkWaitForFences(m_Device, 1, &m_RenderFence, true, UINT64_MAX), "Wait for fences failed");
-        vkh::Check(vkResetFences(m_Device, 1, &m_RenderFence), "Reset fence failed");
+        vkh::Check(vkWaitForFences(m_Device, 1, &GetCurrentFrame().renderFence, true, UINT64_MAX), "Wait for fences failed");
+        vkh::Check(vkResetFences(m_Device, 1, &GetCurrentFrame().renderFence), "Reset fence failed");
 
         uint32_t swapchainImageIndex;
         vkh::Check(vkAcquireNextImageKHR(m_Device, m_Swapchain, UINT64_MAX, m_PresentSemaphore, nullptr, &swapchainImageIndex));
 
         // time to begin rendering commands
-        vkh::Check(vkResetCommandBuffer(m_CommandBuffer, 0));
+        vkh::Check(vkResetCommandBuffer(GetCurrentFrame().commandBuffer, 0));
 
         VkCommandBufferBeginInfo cmdBeginCI
         {
@@ -56,7 +57,7 @@ namespace Eternity
             .pInheritanceInfo   = nullptr
         };
 
-        vkh::Check(vkBeginCommandBuffer(m_CommandBuffer, &cmdBeginCI));
+        vkh::Check(vkBeginCommandBuffer(GetCurrentFrame().commandBuffer, &cmdBeginCI));
 
         VkClearValue clearValue;
         float flash = std::abs(std::sin(m_FrameNumber / 120.f));
@@ -86,7 +87,7 @@ namespace Eternity
         rpBeginCI.renderArea.offset.y    = 0;
         rpBeginCI.renderArea.extent      = m_SwapchainExtent;
 
-        vkCmdBeginRenderPass(m_CommandBuffer, &rpBeginCI, VK_SUBPASS_CONTENTS_INLINE);
+        vkCmdBeginRenderPass(GetCurrentFrame().commandBuffer, &rpBeginCI, VK_SUBPASS_CONTENTS_INLINE);
             // vkCmdBindPipeline(m_CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_MeshPipeline);
 
             // //bind the mesh vertex buffer with offset 0
@@ -111,10 +112,10 @@ namespace Eternity
             // vkCmdPushConstants(m_CommandBuffer, m_MeshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshPushConstants), &constants);
             // //we can now draw the mesh
             // vkCmdDraw(m_CommandBuffer, m_Mesh.vertices.size(), 1, 0, 0);
-            DrawObjects(m_CommandBuffer, m_Renderables, m_Renderables.size());
-        vkCmdEndRenderPass(m_CommandBuffer);
+            DrawObjects(GetCurrentFrame().commandBuffer, m_Renderables, m_Renderables.size());
+        vkCmdEndRenderPass(GetCurrentFrame().commandBuffer);
 
-        vkh::Check(vkEndCommandBuffer(m_CommandBuffer));
+        vkh::Check(vkEndCommandBuffer(GetCurrentFrame().commandBuffer));
 
         //prepare the submission to the queue. 
         //we want to wait on the _presentSemaphore, as that semaphore is signaled when the swapchain is ready
@@ -136,11 +137,11 @@ namespace Eternity
         submit.pSignalSemaphores = &m_RenderSemaphore;
 
         submit.commandBufferCount = 1;
-        submit.pCommandBuffers = &m_CommandBuffer;
+        submit.pCommandBuffers = &GetCurrentFrame().commandBuffer;
 
         //submit command buffer to the queue and execute it.
         // m_RenderFence will now block until the graphic commands finish execution
-        vkh::Check(vkQueueSubmit(m_GraphicsQueue, 1, &submit, m_RenderFence), "Submit queue failed");
+        vkh::Check(vkQueueSubmit(m_GraphicsQueue, 1, &submit, GetCurrentFrame().renderFence), "Submit queue failed");
 
         // this will put the image we just rendered into the visible window.
         // we want to wait on the _renderSemaphore for that, 
@@ -258,27 +259,32 @@ namespace Eternity
             .queueFamilyIndex = m_GraphicsQueueFamily
         };
 
-        auto res = vkCreateCommandPool(m_Device, &commandPoolCI, nullptr, &m_CommandPool);
-        vkh::Check(res, "Command pool create failed");
-
-        VkCommandBufferAllocateInfo cmdAllocCI
+        for (int i = 0; i < FRAME_OVERLAP; i++) 
         {
-            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-            //commands will be made from our commandPool
-            .commandPool = m_CommandPool,
-            // command level is Primary
-            .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-            //we will allocate 1 command buffer
-            .commandBufferCount = 1
-        };
+            auto res = vkCreateCommandPool(m_Device, &commandPoolCI, nullptr, &m_Frames[i].commandPool);
+            vkh::Check(res, "Command pool create failed");
 
-        res = vkAllocateCommandBuffers(m_Device, &cmdAllocCI, &m_CommandBuffer);
-        vkh::Check(res, "Command buffer allocate failed");
+            VkCommandBufferAllocateInfo cmdAllocCI
+            {
+                .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+                //commands will be made from our commandPool
+                .commandPool        = m_Frames[i].commandPool,
+                // command level is Primary
+                .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+                //we will allocate 1 command buffer
+                .commandBufferCount = 1
+            };
 
-        m_DeletionQueue.PushDeleter([=]() 
-        {
-            vkDestroyCommandPool(m_Device, m_CommandPool, nullptr);
-        });
+            //allocate the default command buffer that we will use for rendering
+            res = vkAllocateCommandBuffers(m_Device, &cmdAllocCI, &m_Frames[i].commandBuffer);
+            vkh::Check(res, "Command buffer allocate failed");
+
+            m_DeletionQueue.PushDeleter([=]() 
+            {
+                vkDestroyCommandPool(m_Device, m_Frames[i].commandPool, nullptr);
+            });
+	    }
+
     }
 
     void VulkanRenderer::CreateRenderPass()
@@ -406,6 +412,12 @@ namespace Eternity
             .flags = VK_FENCE_CREATE_SIGNALED_BIT
         };
 
+        VkSemaphoreCreateInfo semaphoreCI
+        {
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+            .flags = 0
+        };
+
         auto res = vkCreateFence(m_Device, &fenceCI, nullptr, &m_RenderFence);
         vkh::Check(res, "Fence create failed");
         m_DeletionQueue.PushDeleter([=]() 
@@ -413,11 +425,7 @@ namespace Eternity
             vkDestroyFence(m_Device, m_RenderFence, nullptr);
         });
         //for the semaphores we don't need any flags
-        VkSemaphoreCreateInfo semaphoreCI
-        {
-            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-            .flags = 0
-        };
+
 
         res = vkCreateSemaphore(m_Device, &semaphoreCI, nullptr, &m_PresentSemaphore);
         vkh::Check(res, "Present semaphore create failed");
@@ -428,6 +436,28 @@ namespace Eternity
             vkDestroySemaphore(m_Device, m_PresentSemaphore, nullptr);
             vkDestroySemaphore(m_Device, m_RenderSemaphore, nullptr);	
         });
+
+
+        for (int i = 0; i < FRAME_OVERLAP; i++) 
+        {     
+            vkh::Check(vkCreateFence(m_Device, &fenceCI, nullptr, &m_Frames[i].renderFence));
+
+            //enqueue the destruction of the fence
+            m_DeletionQueue.PushDeleter([=]() 
+            {
+                vkDestroyFence(m_Device, m_Frames[i].renderFence, nullptr);
+            });
+
+            vkh::Check(vkCreateSemaphore(m_Device, &semaphoreCI, nullptr, &m_Frames[i].presentSemaphore));
+            vkh::Check(vkCreateSemaphore(m_Device, &semaphoreCI, nullptr, &m_Frames[i].renderSemaphore));
+
+            //enqueue the destruction of semaphores
+            m_DeletionQueue.PushDeleter([=]() 
+            {
+                vkDestroySemaphore(m_Device, m_Frames[i].presentSemaphore, nullptr);
+                vkDestroySemaphore(m_Device, m_Frames[i].renderSemaphore, nullptr);
+            });
+	    }
     }
 
     void VulkanRenderer::DestroySyncObjects()
@@ -519,6 +549,45 @@ namespace Eternity
         {
             vkDestroyPipeline(m_Device, m_MeshPipeline, nullptr);
             vkDestroyPipelineLayout(m_Device, m_MeshPipelineLayout, nullptr);
+        });
+    }
+
+    void VulkanRenderer::CreateDescriptors()
+    {
+        //information about the binding.
+        VkDescriptorSetLayoutBinding camBufferBinding = {};
+        camBufferBinding.binding = 0;
+        camBufferBinding.descriptorCount = 1;
+        // it's a uniform buffer binding
+        camBufferBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; 
+
+        // we use it from the vertex shader
+        camBufferBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT; 
+        
+        VkDescriptorSetLayoutCreateInfo setCI
+        {
+            .sType          = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+            .flags          = 0,
+            .bindingCount   = 1,
+            .pBindings      = &camBufferBinding
+        };
+
+        vkCreateDescriptorSetLayout(m_Device, &setCI, nullptr, &m_GlobalSetLayout);
+
+        m_UniformBuffersMemory.resize(FRAME_OVERLAP);
+        
+        for (int i = 0; i < FRAME_OVERLAP; i++)
+        {
+            m_Frames[i].cameraBuffer = vkh::CreateBuffer(m_Device, m_GPU, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, sizeof(GPUCameraData), m_UniformBuffersMemory[i]);
+            m_DeletionQueue.PushDeleter([=]()
+            {
+                vkFreeMemory(m_Device, m_UniformBuffersMemory[i], nullptr);
+                vkDestroyBuffer(m_Device, m_Frames[i].cameraBuffer, nullptr);
+            });
+        }
+        m_DeletionQueue.PushDeleter([=]()
+        {
+            vkDestroyDescriptorSetLayout(m_Device, m_GlobalSetLayout, nullptr);
         });
     }
 
@@ -632,5 +701,10 @@ namespace Eternity
         translation = glm::translate(glm::mat4(1.0f), glm::vec3(6, 0, 0));
         monkey.transformMatrix = translation;
         m_Renderables.push_back(monkey);
+    }
+
+    FrameData& VulkanRenderer::GetCurrentFrame()
+    {
+        return m_Frames[m_FrameNumber % FRAME_OVERLAP];
     }
 }

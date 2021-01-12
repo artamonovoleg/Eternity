@@ -10,3 +10,6 @@
 [submodule "vendor/VulkanHelper"]
 	path = vendor/VulkanHelper
 	url = https://github.com/artamonovoleg/VulkanHelper.git
+[submodule "vendor/VulkanMemoryAllocator"]
+	path = vendor/VulkanMemoryAllocator
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
