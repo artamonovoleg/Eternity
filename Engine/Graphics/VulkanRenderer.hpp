@@ -70,9 +70,6 @@ namespace Eternity
             VkDeviceMemory              m_DepthImageMemory      = VK_NULL_HANDLE;
             VkFormat                    m_DepthFormat           = {};
 
-            std::vector<VkDeviceMemory> m_UniformBuffersMemory  = {};
-            VkDescriptorSetLayout       m_GlobalSetLayout       = VK_NULL_HANDLE;
-            VkDescriptorPool            m_DescriptorPool        = VK_NULL_HANDLE;
             // camera
             Camera                      m_Camera                = glm::vec3(0.0f, 0.0f, 3.0f);
 
@@ -105,7 +102,6 @@ namespace Eternity
             void CreateSyncObjects();
             void DestroySyncObjects();
             void CreatePipeline();
-            void CreateDescriptors();
 
             void LoadMeshes();
             void UploadMesh(Mesh& mesh);

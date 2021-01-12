@@ -20,7 +20,6 @@ namespace Eternity
         CreateRenderPass();
         CreateFramebuffers();
         CreateSyncObjects();
-        CreateDescriptors();
         CreatePipeline();
         LoadMeshes();
         InitScene();
@@ -549,45 +548,6 @@ namespace Eternity
         {
             vkDestroyPipeline(m_Device, m_MeshPipeline, nullptr);
             vkDestroyPipelineLayout(m_Device, m_MeshPipelineLayout, nullptr);
-        });
-    }
-
-    void VulkanRenderer::CreateDescriptors()
-    {
-        //information about the binding.
-        VkDescriptorSetLayoutBinding camBufferBinding = {};
-        camBufferBinding.binding = 0;
-        camBufferBinding.descriptorCount = 1;
-        // it's a uniform buffer binding
-        camBufferBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; 
-
-        // we use it from the vertex shader
-        camBufferBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT; 
-        
-        VkDescriptorSetLayoutCreateInfo setCI
-        {
-            .sType          = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-            .flags          = 0,
-            .bindingCount   = 1,
-            .pBindings      = &camBufferBinding
-        };
-
-        vkCreateDescriptorSetLayout(m_Device, &setCI, nullptr, &m_GlobalSetLayout);
-
-        m_UniformBuffersMemory.resize(FRAME_OVERLAP);
-        
-        for (int i = 0; i < FRAME_OVERLAP; i++)
-        {
-            m_Frames[i].cameraBuffer = vkh::CreateBuffer(m_Device, m_GPU, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, sizeof(GPUCameraData), m_UniformBuffersMemory[i]);
-            m_DeletionQueue.PushDeleter([=]()
-            {
-                vkFreeMemory(m_Device, m_UniformBuffersMemory[i], nullptr);
-                vkDestroyBuffer(m_Device, m_Frames[i].cameraBuffer, nullptr);
-            });
-        }
-        m_DeletionQueue.PushDeleter([=]()
-        {
-            vkDestroyDescriptorSetLayout(m_Device, m_GlobalSetLayout, nullptr);
         });
     }
 
