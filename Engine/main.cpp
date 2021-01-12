@@ -11,16 +11,16 @@ int main(int, char **)
     Eternity::EventSystem::Init();
     Eternity::Input::Init();
     Eternity::VulkanRenderer renderer;
+
     renderer.InitVulkan();
 
     while (!glfwWindowShouldClose(Eternity::GetCurrentWindow()))
     {
-        renderer.Draw();
+        renderer.DrawFrame();
         Eternity::EventSystem::PollEvents();
     }
 
     renderer.DeinitVulkan();
-
     Eternity::DestroyWindow();
     return 0; 
 }
