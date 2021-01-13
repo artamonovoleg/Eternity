@@ -35,6 +35,7 @@ namespace Eternity
                 ET_CORE_INFO("[ Window resize event ] Width: ", m_Size.width, " Height: ", m_Size.height);
             }
 
-            EventType GetType() const override { return EventType::WindowResizeEvent; }
+            WindowSize  GetSize() const { return m_Size; } 
+            EventType   GetType() const override { return EventType::WindowResizeEvent; }
     };
 }

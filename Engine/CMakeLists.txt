@@ -20,7 +20,6 @@ add_executable(eternity main.cpp
                         Events/EventSystem.cpp
                         Input/Input.cpp
                         Core/Window.cpp
-                        Mesh.cpp 
                         Graphics/Camera.cpp
                         Graphics/VulkanRenderer.cpp)
 

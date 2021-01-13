@@ -1,6 +1,8 @@
 #include "VulkanRenderer.hpp"
 #include "VulkanHelper.hpp"
 #include "VulkanDebugCallback.hpp"
+#include "EventSystem.hpp"
+#include "Vertex.hpp"
 
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
@@ -8,6 +10,11 @@ namespace Eternity
 {
     void VulkanRenderer::InitVulkan()
     {
+        Eternity::EventSystem::AddListener(EventType::WindowResizeEvent, [&](const Event& event)
+        {
+            m_FramebufferResized = true;            
+        });
+
         InitInstance();
         CreateSurface();
         CreateLogicalDevice();
@@ -19,6 +26,7 @@ namespace Eternity
         CreateFramebuffers();
 
         CreateCommandPool();
+        CreateVertexBuffer();
         CreateCommandBuffers();
 
         CreateSyncObjects();
@@ -30,12 +38,19 @@ namespace Eternity
         m_DeletionQueue.Flush();
     }
 
+    
     void VulkanRenderer::DrawFrame()
     {
         vkWaitForFences(m_Device, 1, &m_InFlightFences[m_CurrentFrame], VK_TRUE, UINT64_MAX);
 
         uint32_t imageIndex;
-        vkAcquireNextImageKHR(m_Device, m_Swapchain, UINT64_MAX, m_ImageAvailableSemaphores[m_CurrentFrame], VK_NULL_HANDLE, &imageIndex);
+        auto res = vkAcquireNextImageKHR(m_Device, m_Swapchain, UINT64_MAX, m_ImageAvailableSemaphores[m_CurrentFrame], VK_NULL_HANDLE, &imageIndex);
+
+        if (res == VK_ERROR_OUT_OF_DATE_KHR) 
+        {
+            RecreateSwapchain();
+            return;
+        } 
 
         if (m_ImagesInFlight[imageIndex] != VK_NULL_HANDLE) 
             vkWaitForFences(m_Device, 1, &m_ImagesInFlight[imageIndex], VK_TRUE, UINT64_MAX);
@@ -43,20 +58,20 @@ namespace Eternity
         m_ImagesInFlight[imageIndex] = m_InFlightFences[m_CurrentFrame];
 
         VkSubmitInfo submitInfo{};
-        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-        VkSemaphore waitSemaphores[] = { m_ImageAvailableSemaphores[m_CurrentFrame] };
-        VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-        submitInfo.waitSemaphoreCount = 1;
-        submitInfo.pWaitSemaphores = waitSemaphores;
-        submitInfo.pWaitDstStageMask = waitStages;
+        VkSemaphore waitSemaphores[]        = { m_ImageAvailableSemaphores[m_CurrentFrame] };
+        VkPipelineStageFlags waitStages[]   = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+        submitInfo.waitSemaphoreCount       = 1;
+        submitInfo.pWaitSemaphores          = waitSemaphores;
+        submitInfo.pWaitDstStageMask        = waitStages;
 
-        submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &m_CommandBuffers[imageIndex];
+        submitInfo.commandBufferCount       = 1;
+        submitInfo.pCommandBuffers          = &m_CommandBuffers[imageIndex];
 
-        VkSemaphore signalSemaphores[] = { m_RenderFinishedSemaphores[m_CurrentFrame] };
-        submitInfo.signalSemaphoreCount = 1;
-        submitInfo.pSignalSemaphores = signalSemaphores;
+        VkSemaphore signalSemaphores[]      = { m_RenderFinishedSemaphores[m_CurrentFrame] };
+        submitInfo.signalSemaphoreCount     = 1;
+        submitInfo.pSignalSemaphores        = signalSemaphores;
 
         vkResetFences(m_Device, 1, &m_InFlightFences[m_CurrentFrame]);
 
@@ -64,20 +79,39 @@ namespace Eternity
             throw std::runtime_error("failed to submit draw command buffer!");
 
         VkPresentInfoKHR presentInfo{};
-        presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+        presentInfo.sType               = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
-        presentInfo.waitSemaphoreCount = 1;
-        presentInfo.pWaitSemaphores = signalSemaphores;
+        presentInfo.waitSemaphoreCount  = 1;
+        presentInfo.pWaitSemaphores     = signalSemaphores;
 
-        VkSwapchainKHR swapChains[] = { m_Swapchain };
-        presentInfo.swapchainCount = 1;
-        presentInfo.pSwapchains = swapChains;
+        VkSwapchainKHR swapchains[]     = { m_Swapchain };
+        presentInfo.swapchainCount      = 1;
+        presentInfo.pSwapchains         = swapchains;
 
-        presentInfo.pImageIndices = &imageIndex;
+        presentInfo.pImageIndices       = &imageIndex;
 
         vkQueuePresentKHR(m_PresentQueue, &presentInfo);
 
         m_CurrentFrame = (m_CurrentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+    }
+
+    void VulkanRenderer::RecreateSwapchain()
+    {
+        int width = 0, height = 0;
+        glfwGetFramebufferSize(Eternity::GetCurrentWindow(), &width, &height);
+        while (width == 0 || height == 0) 
+        {
+            glfwGetFramebufferSize(Eternity::GetCurrentWindow(), &width, &height);
+            glfwWaitEvents();
+        }
+
+        vkDeviceWaitIdle(m_Device);
+
+        CreateSwapchain();
+        CreateRenderPass();
+        CreateGraphicsPipeline();
+        CreateFramebuffers();
+        CreateCommandBuffers();
     }
 
     void VulkanRenderer::InitInstance()
@@ -216,12 +250,15 @@ namespace Eternity
 
         VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageCI, fragShaderStageCI };
 
+        auto bindingDescription = Vertex::GetBindingDescription();
+        auto attributeDescriptions = Vertex::GetAttributeDescriptions();
+
         VkPipelineVertexInputStateCreateInfo vertexInputCI{};
         vertexInputCI.sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-        vertexInputCI.vertexBindingDescriptionCount   = 0;
-        vertexInputCI.pVertexBindingDescriptions      = nullptr; // Optional
-        vertexInputCI.vertexAttributeDescriptionCount = 0;
-        vertexInputCI.pVertexAttributeDescriptions    = nullptr; // Optional
+        vertexInputCI.vertexBindingDescriptionCount   = 1;
+        vertexInputCI.pVertexBindingDescriptions      = &bindingDescription;  // Optional
+        vertexInputCI.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+        vertexInputCI.pVertexAttributeDescriptions    = attributeDescriptions.data(); // Optional
 
         VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
         inputAssembly.sType                     = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -387,6 +424,32 @@ namespace Eternity
         });
     }
 
+    void VulkanRenderer::CreateVertexBuffer()
+    {
+        VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+
+        VkBuffer stagingBuffer;
+        VkDeviceMemory stagingBufferMemory;
+        vkh::CreateBuffer(m_Device, m_GPU, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+
+        void* data;
+        vkMapMemory(m_Device, stagingBufferMemory, 0, bufferSize, 0, &data);
+            std::memcpy(data, vertices.data(), (size_t) bufferSize);
+        vkUnmapMemory(m_Device, stagingBufferMemory);
+
+        vkh::CreateBuffer(m_Device, m_GPU, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_VertexBuffer, m_VertexBufferMemory);
+
+        vkh::CopyBuffer(m_Device, m_CommandPool, m_GraphicsQueue, stagingBuffer, m_VertexBuffer, bufferSize);
+        vkDestroyBuffer(m_Device, stagingBuffer, nullptr);
+        vkFreeMemory(m_Device, stagingBufferMemory, nullptr);
+
+        m_DeletionQueue.PushDeleter([&]()
+        {
+            vkDestroyBuffer(m_Device, m_VertexBuffer, nullptr);
+            vkFreeMemory(m_Device, m_VertexBufferMemory, nullptr);
+        });
+    }
+
     void VulkanRenderer::CreateCommandBuffers()
     {
         m_CommandBuffers.resize(m_SwapchainFramebuffers.size());
@@ -413,16 +476,18 @@ namespace Eternity
             renderPassInfo.renderArea.offset = { 0, 0 };
             renderPassInfo.renderArea.extent = m_Extent;
 
-            VkClearValue clearColor = { 0.0f, 0.0f, 0.0f, 1.0f };
+            VkClearValue clearColor = { 0.2f, 0.3f, 0.4f, 1.0f };
             renderPassInfo.clearValueCount = 1;
             renderPassInfo.pClearValues = &clearColor;
 
             vkCmdBeginRenderPass(m_CommandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-
                 vkCmdBindPipeline(m_CommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_GraphicsPipeline);
 
-                vkCmdDraw(m_CommandBuffers[i], 3, 1, 0, 0);
+                VkBuffer vertexBuffers[]    = { m_VertexBuffer };
+                VkDeviceSize offsets[]      = { 0 };
+                vkCmdBindVertexBuffers(m_CommandBuffers[i], 0, 1, vertexBuffers, offsets);
 
+                vkCmdDraw(m_CommandBuffers[i], static_cast<uint32_t>(vertices.size()), 1, 0, 0);
             vkCmdEndRenderPass(m_CommandBuffers[i]);
 
             vkh::Check(vkEndCommandBuffer(m_CommandBuffers[i]), "Failed to record command buffer!");
@@ -457,4 +522,6 @@ namespace Eternity
             });
         }
     }
+
+
 }

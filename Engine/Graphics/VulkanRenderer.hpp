@@ -1,8 +1,8 @@
 #pragma once
 
+#include <cstring>
 #include <vulkan/vulkan.h>
 #include "Window.hpp"
-#include "Mesh.hpp"
 #include "Camera.hpp"
 #include "DeletionQueue.hpp"
 
@@ -49,6 +49,11 @@ namespace Eternity
             std::vector<VkFence>            m_ImagesInFlight            = {};
             size_t                          m_CurrentFrame              = 0;
 
+            bool                            m_FramebufferResized        = false;
+
+            VkBuffer                        m_VertexBuffer              = VK_NULL_HANDLE;
+            VkDeviceMemory                  m_VertexBufferMemory        = VK_NULL_HANDLE;
+            
             // Init vulkan
             void InitInstance();
             void CreateSurface();
@@ -61,9 +66,13 @@ namespace Eternity
             void CreateFramebuffers();
 
             void CreateCommandPool();
+            void CreateVertexBuffer();
             void CreateCommandBuffers();
 
             void CreateSyncObjects();
+
+            void RecreateSwapchain();
+
         public:
             void InitVulkan();
             void DeinitVulkan();
