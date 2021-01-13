@@ -24,9 +24,11 @@ namespace Eternity
         CreateDescriptorSetLayout();
         CreateGraphicsPipeline();
 
-        CreateFramebuffers();
 
         CreateCommandPool();
+        CreateDepthResources();
+        CreateFramebuffers();
+
         CreateTextureImage();
         CreateTextureImageView();
         CreateTextureSampler();
@@ -219,26 +221,42 @@ namespace Eternity
         colorAttachmentRef.attachment   = 0;
         colorAttachmentRef.layout       = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
+        VkAttachmentDescription depthAttachment{};
+        depthAttachment.format          = vkh::FindDepthFormat(m_GPU);
+        depthAttachment.samples         = VK_SAMPLE_COUNT_1_BIT;
+        depthAttachment.loadOp          = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        depthAttachment.storeOp         = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depthAttachment.stencilLoadOp   = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        depthAttachment.stencilStoreOp  = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depthAttachment.initialLayout   = VK_IMAGE_LAYOUT_UNDEFINED;
+        depthAttachment.finalLayout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+        VkAttachmentReference depthAttachmentRef{};
+        depthAttachmentRef.attachment   = 1;
+        depthAttachmentRef.layout       = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
         VkSubpassDescription subpass{};
         subpass.pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS;
         subpass.colorAttachmentCount    = 1;
         subpass.pColorAttachments       = &colorAttachmentRef;
-
-        VkRenderPassCreateInfo renderPassCI{};
-        renderPassCI.sType              = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-        renderPassCI.attachmentCount    = 1;
-        renderPassCI.pAttachments       = &colorAttachment;
-        renderPassCI.subpassCount       = 1;
-        renderPassCI.pSubpasses         = &subpass;
+        subpass.pDepthStencilAttachment = &depthAttachmentRef;
 
         VkSubpassDependency dependency{};
         dependency.srcSubpass           = VK_SUBPASS_EXTERNAL;
         dependency.dstSubpass           = 0;
-        dependency.srcStageMask         = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        dependency.srcStageMask         = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
         dependency.srcAccessMask        = 0;
-        dependency.dstStageMask         = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        dependency.dstAccessMask        = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        dependency.dstStageMask         = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+        dependency.dstAccessMask        = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
+        std::array<VkAttachmentDescription, 2> attachments = { colorAttachment, depthAttachment };
+
+        VkRenderPassCreateInfo renderPassCI{};
+        renderPassCI.sType              = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        renderPassCI.attachmentCount    = static_cast<uint32_t>(attachments.size());
+        renderPassCI.pAttachments       = attachments.data();
+        renderPassCI.subpassCount       = 1;
+        renderPassCI.pSubpasses         = &subpass;
         renderPassCI.dependencyCount    = 1;
         renderPassCI.pDependencies      = &dependency;
 
@@ -259,10 +277,19 @@ namespace Eternity
         uboLayoutBinding.descriptorCount    = 1;
         uboLayoutBinding.stageFlags         = VK_SHADER_STAGE_VERTEX_BIT;
 
+        VkDescriptorSetLayoutBinding samplerLayoutBinding{};
+        samplerLayoutBinding.binding            = 1;
+        samplerLayoutBinding.descriptorCount    = 1;
+        samplerLayoutBinding.descriptorType     = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        samplerLayoutBinding.pImmutableSamplers = nullptr;
+        samplerLayoutBinding.stageFlags         = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+        std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding };
+
         VkDescriptorSetLayoutCreateInfo layoutCI{};
-        layoutCI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        layoutCI.bindingCount = 1;
-        layoutCI.pBindings = &uboLayoutBinding;
+        layoutCI.sType          = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        layoutCI.bindingCount   = static_cast<uint32_t>(bindings.size());
+        layoutCI.pBindings      = bindings.data();
 
         vkh::Check(vkCreateDescriptorSetLayout(m_Device, &layoutCI, nullptr, &m_DescriptorSetLayout), "Create descriptor set layout failed");
         m_DeletionQueue.PushDeleter([&]()
@@ -291,16 +318,30 @@ namespace Eternity
             bufferCI.offset = 0;
             bufferCI.range  = sizeof(UniformBufferObject);
 
-            VkWriteDescriptorSet descriptorWrite{};
-            descriptorWrite.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrite.dstSet          = m_DescriptorSets[i];
-            descriptorWrite.dstBinding      = 0;
-            descriptorWrite.dstArrayElement = 0;
-            descriptorWrite.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            descriptorWrite.descriptorCount = 1;
-            descriptorWrite.pBufferInfo     = &bufferCI;
+            VkDescriptorImageInfo imageCI{};
+            imageCI.imageLayout   = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            imageCI.imageView     = m_TextureImageView;
+            imageCI.sampler       = m_TextureSampler;
 
-            vkUpdateDescriptorSets(m_Device, 1, &descriptorWrite, 0, nullptr);
+            std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+
+            descriptorWrites[0].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrites[0].dstSet          = m_DescriptorSets[i];
+            descriptorWrites[0].dstBinding      = 0;
+            descriptorWrites[0].dstArrayElement = 0;
+            descriptorWrites[0].descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            descriptorWrites[0].descriptorCount = 1;
+            descriptorWrites[0].pBufferInfo     = &bufferCI;
+
+            descriptorWrites[1].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrites[1].dstSet          = m_DescriptorSets[i];
+            descriptorWrites[1].dstBinding      = 1;
+            descriptorWrites[1].dstArrayElement = 0;
+            descriptorWrites[1].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            descriptorWrites[1].descriptorCount = 1;
+            descriptorWrites[1].pImageInfo      = &imageCI;
+
+            vkUpdateDescriptorSets(m_Device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
         }
     }
 
@@ -421,6 +462,14 @@ namespace Eternity
         auto res = vkCreatePipelineLayout(m_Device, &pipelineLayoutCI, nullptr, &m_PipelineLayout);
         vkh::Check(res, "Pipeline layout crate failed");
 
+        VkPipelineDepthStencilStateCreateInfo depthStencil{};
+        depthStencil.sType                  = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+        depthStencil.depthTestEnable        = VK_TRUE;
+        depthStencil.depthWriteEnable       = VK_TRUE;
+        depthStencil.depthCompareOp         = VK_COMPARE_OP_LESS;
+        depthStencil.depthBoundsTestEnable  = VK_FALSE;
+        depthStencil.stencilTestEnable      = VK_FALSE;
+
         VkGraphicsPipelineCreateInfo pipelineCI{};
         pipelineCI.sType                  = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
         pipelineCI.stageCount             = 2;
@@ -430,7 +479,7 @@ namespace Eternity
         pipelineCI.pViewportState         = &viewportState;
         pipelineCI.pRasterizationState    = &rasterizer;
         pipelineCI.pMultisampleState      = &multisampling;
-        pipelineCI.pDepthStencilState     = nullptr; // Optional
+        pipelineCI.pDepthStencilState     = &depthStencil; // Optional
         pipelineCI.pColorBlendState       = &colorBlending;
         pipelineCI.pDynamicState          = nullptr; // Optional
         pipelineCI.layout                 = m_PipelineLayout;
@@ -457,16 +506,16 @@ namespace Eternity
         m_SwapchainFramebuffers.resize(m_ImageViews.size());
         for (size_t i = 0; i < m_ImageViews.size(); i++) 
         {
-            VkImageView attachments[] = 
-            {
-                m_ImageViews[i]
+            std::array<VkImageView, 2> attachments = {
+                m_ImageViews[i],
+                m_DepthImageView
             };
 
             VkFramebufferCreateInfo framebufferCI{};
             framebufferCI.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
             framebufferCI.renderPass      = m_RenderPass;
-            framebufferCI.attachmentCount = 1;
-            framebufferCI.pAttachments    = attachments;
+            framebufferCI.attachmentCount = static_cast<uint32_t>(attachments.size());
+            framebufferCI.pAttachments    = attachments.data();
             framebufferCI.width           = m_Extent.width;
             framebufferCI.height          = m_Extent.height;
             framebufferCI.layers          = 1;
@@ -533,18 +582,18 @@ namespace Eternity
         });
     }
 
-    VkImageView VulkanRenderer::CreateImageView(VkImage image, VkFormat format)
+    VkImageView VulkanRenderer::CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags)
     {
         VkImageViewCreateInfo viewCI{};
-        viewCI.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        viewCI.image = image;
-        viewCI.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        viewCI.format = format;
-        viewCI.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        viewCI.subresourceRange.baseMipLevel = 0;
-        viewCI.subresourceRange.levelCount = 1;
-        viewCI.subresourceRange.baseArrayLayer = 0;
-        viewCI.subresourceRange.layerCount = 1;
+        viewCI.sType                            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        viewCI.image                            = image;
+        viewCI.viewType                         = VK_IMAGE_VIEW_TYPE_2D;
+        viewCI.format                           = format;
+        viewCI.subresourceRange.aspectMask      = aspectFlags;
+        viewCI.subresourceRange.baseMipLevel    = 0;
+        viewCI.subresourceRange.levelCount      = 1;
+        viewCI.subresourceRange.baseArrayLayer  = 0;
+        viewCI.subresourceRange.layerCount      = 1;
 
         VkImageView imageView;
         vkh::Check(vkCreateImageView(m_Device, &viewCI, nullptr, &imageView), "Failed to create image view");
@@ -555,7 +604,7 @@ namespace Eternity
 
     void VulkanRenderer::CreateTextureImageView()
     {
-        m_TextureImageView = CreateImageView(m_TextureImage, VK_FORMAT_R8G8B8A8_SRGB);
+        m_TextureImageView = CreateImageView(m_TextureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
 
         m_DeletionQueue.PushDeleter([=]()
         {
@@ -649,6 +698,20 @@ namespace Eternity
         VkPipelineStageFlags sourceStage;
         VkPipelineStageFlags destinationStage;
 
+        if (newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) 
+        {
+            barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+
+            if (HasStencilComponent(format)) 
+            {
+                barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+            }
+        } 
+        else 
+        {
+            barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        }
+
         if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) 
         {
             barrier.srcAccessMask = 0;
@@ -665,6 +728,15 @@ namespace Eternity
 
             sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
             destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        } 
+        else 
+        if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) 
+        {
+            barrier.srcAccessMask = 0;
+            barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+            sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+            destinationStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
         }
 
         vkCmdPipelineBarrier(
@@ -679,6 +751,24 @@ namespace Eternity
         vkh::EndSingleTimeCommands(m_Device, m_CommandPool, m_GraphicsQueue, commandBuffer);
     }
 
+    bool VulkanRenderer::HasStencilComponent(VkFormat format)
+    {
+        return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
+    }
+
+    void VulkanRenderer::CreateDepthResources()
+    {
+        VkFormat depthFormat = vkh::FindDepthFormat(m_GPU);
+        vkh::CreateImage(m_Device, m_GPU, m_Extent.width, m_Extent.height, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_DepthImage, m_DepthImageMemory);
+        m_DepthImageView = CreateImageView(m_DepthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
+        TransitionImageLayout(m_DepthImage, depthFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+
+        m_DeletionQueue.PushDeleter([=]()
+        {
+            vkDestroyImage(m_Device, m_DepthImage, nullptr);
+            vkDestroyImageView(m_Device, m_DepthImageView, nullptr);
+        });
+    }
 
     void VulkanRenderer::CreateVertexBuffer()
     {
@@ -776,10 +866,16 @@ namespace Eternity
         poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         poolSize.descriptorCount = static_cast<uint32_t>(m_Images.size());
 
+        std::array<VkDescriptorPoolSize, 2> poolSizes{};
+        poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        poolSizes[0].descriptorCount = static_cast<uint32_t>(m_Images.size());
+        poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        poolSizes[1].descriptorCount = static_cast<uint32_t>(m_Images.size());
+
         VkDescriptorPoolCreateInfo poolCI{};
         poolCI.sType          = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-        poolCI.poolSizeCount  = 1;
-        poolCI.pPoolSizes     = &poolSize;
+        poolCI.poolSizeCount  = static_cast<uint32_t>(poolSizes.size());
+        poolCI.pPoolSizes     = poolSizes.data();
 
         poolCI.maxSets = static_cast<uint32_t>(m_Images.size());
 
@@ -818,9 +914,12 @@ namespace Eternity
             renderPassInfo.renderArea.offset = { 0, 0 };
             renderPassInfo.renderArea.extent = m_Extent;
 
-            VkClearValue clearColor = { 0.2f, 0.3f, 0.4f, 1.0f };
-            renderPassInfo.clearValueCount = 1;
-            renderPassInfo.pClearValues = &clearColor;
+            std::array<VkClearValue, 2> clearValues{};
+            clearValues[0].color        = { 0.2f, 0.3f, 0.4f, 1.0f };
+            clearValues[1].depthStencil = { 1.0f, 0 };
+
+            renderPassInfo.clearValueCount  = static_cast<uint32_t>(clearValues.size());
+            renderPassInfo.pClearValues     = clearValues.data();
 
             vkCmdBeginRenderPass(m_CommandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
                 vkCmdBindPipeline(m_CommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_GraphicsPipeline);

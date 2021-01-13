@@ -65,6 +65,10 @@ namespace Eternity
             VkSampler                       m_TextureSampler            = VK_NULL_HANDLE;
             VkDeviceMemory                  m_TextureImageMemory        = VK_NULL_HANDLE;
 
+            VkImage                         m_DepthImage                = VK_NULL_HANDLE;
+            VkDeviceMemory                  m_DepthImageMemory          = VK_NULL_HANDLE;
+            VkImageView                     m_DepthImageView            = VK_NULL_HANDLE;
+
             VkBuffer                        m_VertexBuffer              = VK_NULL_HANDLE;
             VkDeviceMemory                  m_VertexBufferMemory        = VK_NULL_HANDLE;
             VkBuffer                        m_IndexBuffer               = VK_NULL_HANDLE;
@@ -88,12 +92,15 @@ namespace Eternity
 
             void CreateCommandPool();
             void CreateTextureImage();
-            VkImageView CreateImageView(VkImage image, VkFormat format);
+            VkImageView CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
             void CreateTextureImageView();
             void CreateTextureSampler();
             void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
             void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
-            
+
+            bool HasStencilComponent(VkFormat format);
+            void CreateDepthResources();    
+        
             void CreateVertexBuffer();
             void CreateIndexBuffer();
             void CreateUniformBuffers();
