@@ -6,7 +6,8 @@ add_compile_options(-g)
 
 set(VENDORS ../vendor/glfw/include
             ../vendor/glm
-            ../vendor/VulkanHelper/includes)
+            ../vendor/VulkanHelper/includes
+            ../vendor/stb_image)
 
 include_directories(${VENDORS}
                     Core
@@ -23,4 +24,4 @@ add_executable(eternity main.cpp
                         Graphics/Camera.cpp
                         Graphics/VulkanRenderer.cpp)
 
-target_link_libraries(eternity vulkan glfw ${GLFW_LIBRARIES} glm tinyobjloader VulkanHelper)
+target_link_libraries(eternity vulkan glfw ${GLFW_LIBRARIES} glm tinyobjloader VulkanHelper stb_image)

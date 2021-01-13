@@ -1,16 +1,25 @@
 #pragma once
 
 #include <deque>
+#include <set>
 #include <functional>
 
 class DeletionQueue
 {
     private:
-	    std::deque<std::function<void()>> deletors;
+	    std::deque<std::function<void()>>   deletors;
     public:
         void PushDeleter(std::function<void()>&& function) 
         {
-            deletors.push_back(function);
+            deletors.push_back([=]()
+            { 
+                static bool firstcall = true;
+                if (firstcall)
+                {
+                    function();
+                    firstcall = false;
+                }
+            });
         }
 
         void Flush() 

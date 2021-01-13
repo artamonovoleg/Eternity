@@ -2,12 +2,21 @@
 
 #include <cstring>
 #include <vulkan/vulkan.h>
+#include <stb_image.h>
+
 #include "Window.hpp"
 #include "Camera.hpp"
 #include "DeletionQueue.hpp"
 
 namespace Eternity
 {
+    struct UniformBufferObject 
+    {
+        glm::mat4 model;
+        glm::mat4 view;
+        glm::mat4 proj;
+    };
+
     class VulkanRenderer
     {
         private:
@@ -28,15 +37,15 @@ namespace Eternity
             VkQueue                     m_PresentQueue      = VK_NULL_HANDLE;
 
             VkSwapchainKHR              m_Swapchain         = VK_NULL_HANDLE;
-
             std::vector<VkImage>        m_Images            = {};
             VkFormat                    m_ImageFormat       = {};
             VkExtent2D                  m_Extent            = {};
             std::vector<VkImageView>    m_ImageViews        = {};
 
-            VkRenderPass                m_RenderPass        = VK_NULL_HANDLE;
-            VkPipelineLayout            m_PipelineLayout    = VK_NULL_HANDLE;
-            VkPipeline                  m_GraphicsPipeline  = VK_NULL_HANDLE;
+            VkRenderPass                m_RenderPass                    = VK_NULL_HANDLE;
+            VkDescriptorSetLayout       m_DescriptorSetLayout           = VK_NULL_HANDLE;
+            VkPipelineLayout            m_PipelineLayout                = VK_NULL_HANDLE;
+            VkPipeline                  m_GraphicsPipeline              = VK_NULL_HANDLE;
 
             std::vector<VkFramebuffer>      m_SwapchainFramebuffers     = {};
 
@@ -50,9 +59,20 @@ namespace Eternity
             size_t                          m_CurrentFrame              = 0;
 
             bool                            m_FramebufferResized        = false;
+            
+            VkImage                         m_TextureImage              = VK_NULL_HANDLE;
+            VkImageView                     m_TextureImageView          = VK_NULL_HANDLE;
+            VkSampler                       m_TextureSampler            = VK_NULL_HANDLE;
+            VkDeviceMemory                  m_TextureImageMemory        = VK_NULL_HANDLE;
 
             VkBuffer                        m_VertexBuffer              = VK_NULL_HANDLE;
             VkDeviceMemory                  m_VertexBufferMemory        = VK_NULL_HANDLE;
+            VkBuffer                        m_IndexBuffer               = VK_NULL_HANDLE;
+            VkDeviceMemory                  m_IndexBufferMemory         = VK_NULL_HANDLE;
+            std::vector<VkBuffer>           m_UniformBuffers            = {};
+            std::vector<VkDeviceMemory>     m_UniformBuffersMemory      = {};
+            VkDescriptorPool                m_DescriptorPool            = VK_NULL_HANDLE;
+            std::vector<VkDescriptorSet>    m_DescriptorSets            = {};
             
             // Init vulkan
             void InitInstance();
@@ -61,12 +81,25 @@ namespace Eternity
             void CreateSwapchain();
 
             void CreateRenderPass();
+            void CreateDescriptorSetLayout();
             // create pipeline
             void CreateGraphicsPipeline();
             void CreateFramebuffers();
 
             void CreateCommandPool();
+            void CreateTextureImage();
+            VkImageView CreateImageView(VkImage image, VkFormat format);
+            void CreateTextureImageView();
+            void CreateTextureSampler();
+            void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+            void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+            
             void CreateVertexBuffer();
+            void CreateIndexBuffer();
+            void CreateUniformBuffers();
+            void UpdateUniformBuffer(uint32_t currentImage);
+            void CreateDescriptorPool();
+            void CreateDescriptorSets();
             void CreateCommandBuffers();
 
             void CreateSyncObjects();
