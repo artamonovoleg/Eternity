@@ -1,8 +1,10 @@
+#define TINYOBJLOADER_IMPLEMENTATION
+#include <tiny_obj_loader.h>
+
 #include "VulkanRenderer.hpp"
 #include "VulkanHelper.hpp"
 #include "VulkanDebugCallback.hpp"
 #include "EventSystem.hpp"
-#include "Vertex.hpp"
 
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
@@ -33,6 +35,7 @@ namespace Eternity
         CreateTextureImageView();
         CreateTextureSampler();
         
+        LoadModel();
         CreateVertexBuffer();
         CreateIndexBuffer();
         CreateUniformBuffers();
@@ -125,15 +128,46 @@ namespace Eternity
         }
 
         vkDeviceWaitIdle(m_Device);
+        CleanupSwapchain();
 
         CreateSwapchain();
         CreateRenderPass();
         CreateGraphicsPipeline();
+        CreateDepthResources();
         CreateFramebuffers();
         CreateUniformBuffers();
         CreateDescriptorPool();
         CreateDescriptorSets();
         CreateCommandBuffers();
+    }
+
+    void VulkanRenderer::CleanupSwapchain()
+    {
+        vkDestroyImageView(m_Device, m_DepthImageView, nullptr);
+        vkDestroyImage(m_Device, m_DepthImage, nullptr);
+        vkFreeMemory(m_Device, m_DepthImageMemory, nullptr);
+
+        for (auto framebuffer : m_SwapchainFramebuffers)
+            vkDestroyFramebuffer(m_Device, framebuffer, nullptr);
+
+        vkFreeCommandBuffers(m_Device, m_CommandPool, static_cast<uint32_t>(m_CommandBuffers.size()), m_CommandBuffers.data());
+
+        vkDestroyPipeline(m_Device, m_GraphicsPipeline, nullptr);
+        vkDestroyPipelineLayout(m_Device, m_PipelineLayout, nullptr);
+        vkDestroyRenderPass(m_Device, m_RenderPass, nullptr);
+
+        for (auto imageView : m_ImageViews)
+            vkDestroyImageView(m_Device, imageView, nullptr);
+
+        vkDestroySwapchainKHR(m_Device, m_Swapchain, nullptr);
+
+        for (size_t i = 0; i < m_Images.size(); i++) 
+        {
+            vkDestroyBuffer(m_Device, m_UniformBuffers[i], nullptr);
+            vkFreeMemory(m_Device, m_UniformBuffersMemory[i], nullptr);
+        }
+
+        vkDestroyDescriptorPool(m_Device, m_DescriptorPool, nullptr);
     }
 
     void VulkanRenderer::InitInstance()
@@ -549,7 +583,7 @@ namespace Eternity
     void VulkanRenderer::CreateTextureImage()
     {
         int texWidth, texHeight, texChannels;
-        stbi_uc* pixels = stbi_load("../Engine/assets/texture.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+        stbi_uc* pixels = stbi_load("../Engine/assets/diablo.tga", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
         VkDeviceSize imageSize = texWidth * texHeight * 4;
 
         ET_CORE_ASSERT(pixels, "Failed to load texture image!");
@@ -772,7 +806,7 @@ namespace Eternity
 
     void VulkanRenderer::CreateVertexBuffer()
     {
-        VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+        VkDeviceSize bufferSize = sizeof(m_Vertices[0]) * m_Vertices.size();
 
         VkBuffer stagingBuffer;
         VkDeviceMemory stagingBufferMemory;
@@ -780,7 +814,7 @@ namespace Eternity
 
         void* data;
         vkMapMemory(m_Device, stagingBufferMemory, 0, bufferSize, 0, &data);
-            std::memcpy(data, vertices.data(), (size_t) bufferSize);
+            std::memcpy(data, m_Vertices.data(), (size_t) bufferSize);
         vkUnmapMemory(m_Device, stagingBufferMemory);
 
         vkh::CreateBuffer(m_Device, m_GPU, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_VertexBuffer, m_VertexBufferMemory);
@@ -798,7 +832,7 @@ namespace Eternity
 
     void VulkanRenderer::CreateIndexBuffer()
     {
-        VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
+        VkDeviceSize bufferSize = sizeof(m_Indices[0]) * m_Indices.size();
 
         VkBuffer stagingBuffer;
         VkDeviceMemory stagingBufferMemory;
@@ -806,7 +840,7 @@ namespace Eternity
 
         void* data;
         vkMapMemory(m_Device, stagingBufferMemory, 0, bufferSize, 0, &data);
-        memcpy(data, indices.data(), (size_t) bufferSize);
+        memcpy(data, m_Indices.data(), (size_t) bufferSize);
         vkUnmapMemory(m_Device, stagingBufferMemory);
 
         vkh::CreateBuffer(m_Device, m_GPU, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_IndexBuffer, m_IndexBufferMemory);
@@ -849,8 +883,8 @@ namespace Eternity
         float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
     
         UniformBufferObject ubo{};
-        ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-        ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        ubo.view = glm::lookAt(glm::vec3(3.0f, 1.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         ubo.proj = glm::perspective(glm::radians(45.0f), m_Extent.width / (float) m_Extent.height, 0.1f, 10.0f);
         ubo.proj[1][1] *= -1;
         
@@ -927,11 +961,11 @@ namespace Eternity
                 VkBuffer vertexBuffers[]    = { m_VertexBuffer };
                 VkDeviceSize offsets[]      = { 0 };
                 vkCmdBindVertexBuffers(m_CommandBuffers[i], 0, 1, vertexBuffers, offsets);
-                vkCmdBindIndexBuffer(m_CommandBuffers[i], m_IndexBuffer, 0, VK_INDEX_TYPE_UINT16);
+                vkCmdBindIndexBuffer(m_CommandBuffers[i], m_IndexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
                 vkCmdBindDescriptorSets(m_CommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_PipelineLayout, 0, 1, &m_DescriptorSets[i], 0, nullptr);
 
-                vkCmdDrawIndexed(m_CommandBuffers[i], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+                vkCmdDrawIndexed(m_CommandBuffers[i], static_cast<uint32_t>(m_Indices.size()), 1, 0, 0, 0);
             vkCmdEndRenderPass(m_CommandBuffers[i]);
 
             vkh::Check(vkEndCommandBuffer(m_CommandBuffers[i]), "Failed to record command buffer!");
@@ -967,5 +1001,47 @@ namespace Eternity
         }
     }
 
+    void VulkanRenderer::LoadModel()
+    {
+        tinyobj::attrib_t attrib;
+        std::vector<tinyobj::shape_t> shapes;
+        std::vector<tinyobj::material_t> materials;
+        std::string warn, err;
 
+        std::string modelPath = "../Engine/assets/diablo.obj";
+        
+        bool res = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, modelPath.c_str());
+        ET_CORE_ASSERT(res, warn, err);
+
+        std::unordered_map<Vertex, uint32_t> uniqueVertices;
+
+        for (const auto& shape : shapes) 
+        {
+            for (const auto& index : shape.mesh.indices) 
+            {
+                Vertex vertex{};
+
+                vertex.pos = {
+                    attrib.vertices[3 * index.vertex_index + 0],
+                    attrib.vertices[3 * index.vertex_index + 1],
+                    attrib.vertices[3 * index.vertex_index + 2]
+                };
+
+                vertex.texCoord = {
+                    attrib.texcoords[2 * index.texcoord_index + 0],
+                    1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
+                };
+
+                vertex.color = {1.0f, 1.0f, 1.0f};
+
+                if (uniqueVertices.count(vertex) == 0) 
+                {
+                    uniqueVertices[vertex] = static_cast<uint32_t>(m_Vertices.size());
+                    m_Vertices.push_back(vertex);
+                }
+
+                m_Indices.push_back(uniqueVertices[vertex]);
+            }
+        }
+    }
 }

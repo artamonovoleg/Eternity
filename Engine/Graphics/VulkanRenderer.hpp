@@ -1,12 +1,13 @@
 #pragma once
 
 #include <cstring>
+#include <unordered_map>
 #include <vulkan/vulkan.h>
 #include <stb_image.h>
-
 #include "Window.hpp"
 #include "Camera.hpp"
 #include "DeletionQueue.hpp"
+#include "Vertex.hpp"
 
 namespace Eternity
 {
@@ -69,6 +70,8 @@ namespace Eternity
             VkDeviceMemory                  m_DepthImageMemory          = VK_NULL_HANDLE;
             VkImageView                     m_DepthImageView            = VK_NULL_HANDLE;
 
+            std::vector<Vertex>             m_Vertices                  = {};
+            std::vector<uint32_t>           m_Indices                   = {};
             VkBuffer                        m_VertexBuffer              = VK_NULL_HANDLE;
             VkDeviceMemory                  m_VertexBufferMemory        = VK_NULL_HANDLE;
             VkBuffer                        m_IndexBuffer               = VK_NULL_HANDLE;
@@ -83,6 +86,7 @@ namespace Eternity
             void CreateSurface();
             void CreateLogicalDevice();
             void CreateSwapchain();
+            void CleanupSwapchain();
 
             void CreateRenderPass();
             void CreateDescriptorSetLayout();
@@ -100,7 +104,8 @@ namespace Eternity
 
             bool HasStencilComponent(VkFormat format);
             void CreateDepthResources();    
-        
+
+            void LoadModel();
             void CreateVertexBuffer();
             void CreateIndexBuffer();
             void CreateUniformBuffers();
@@ -112,7 +117,6 @@ namespace Eternity
             void CreateSyncObjects();
 
             void RecreateSwapchain();
-
         public:
             void InitVulkan();
             void DeinitVulkan();
