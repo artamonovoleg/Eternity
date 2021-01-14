@@ -4,16 +4,20 @@
 #include "VulkanRenderer.hpp"
 #include "EventSystem.hpp"
 #include "Input.hpp"
+#include "VulkanHelper.hpp"
+#include <vulkan/vulkan.hpp>
 
-int main(int, char **) 
+int main(int argc, char** argv) 
 {
     Eternity::CreateWindow(800, 600, "Eternity");
     Eternity::EventSystem::Init();
     Eternity::Input::Init();
+
     Eternity::VulkanRenderer renderer;
-
+    
+    renderer.SetTargetModel("../Engine/assets/diablo.obj", "../Engine/assets/diablo.tga");
     renderer.InitVulkan();
-
+    
     while (!glfwWindowShouldClose(Eternity::GetCurrentWindow()))
     {
         renderer.DrawFrame();

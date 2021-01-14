@@ -22,7 +22,7 @@ namespace Eternity
     {
         private:
             // memory managment
-            DeletionQueue   m_DeletionQueue     = {};
+            DeletionQueue               m_DeletionQueue     = {};
             // Vulkan structures
             VkInstance                  m_Instance          = VK_NULL_HANDLE;
             VkDebugUtilsMessengerEXT    m_DebugMessenger    = VK_NULL_HANDLE;
@@ -61,6 +61,7 @@ namespace Eternity
 
             bool                            m_FramebufferResized        = false;
             
+            uint32_t                        m_MipLevels                 = 0;
             VkImage                         m_TextureImage              = VK_NULL_HANDLE;
             VkImageView                     m_TextureImageView          = VK_NULL_HANDLE;
             VkSampler                       m_TextureSampler            = VK_NULL_HANDLE;
@@ -81,6 +82,11 @@ namespace Eternity
             VkDescriptorPool                m_DescriptorPool            = VK_NULL_HANDLE;
             std::vector<VkDescriptorSet>    m_DescriptorSets            = {};
             
+            // obj loader
+            Camera                          m_Camera                    = Camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+            std::string                     m_TexturePath               = {};
+            std::string                     m_ModelPath                 = {};
+
             // Init vulkan
             void InitInstance();
             void CreateSurface();
@@ -96,12 +102,12 @@ namespace Eternity
 
             void CreateCommandPool();
             void CreateTextureImage();
-            VkImageView CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
+            VkImageView CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels);
             void CreateTextureImageView();
             void CreateTextureSampler();
-            void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+            void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels);
             void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
-
+            void GenerateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
             bool HasStencilComponent(VkFormat format);
             void CreateDepthResources();    
 
@@ -119,6 +125,7 @@ namespace Eternity
             void RecreateSwapchain();
         public:
             void InitVulkan();
+            void SetTargetModel(const std::string& modelPath, const std::string& texturePath);
             void DeinitVulkan();
 
             void DrawFrame();
