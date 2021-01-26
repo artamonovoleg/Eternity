@@ -10,8 +10,12 @@ set(VENDORS ../vendor/glfw/include
             ../vendor/stb_image)
 
 include_directories(${VENDORS}
-                    ./)
+                    ./
+                    ./Core
+                    ./Utils)
 
-add_executable(Eternity main.cpp)
-
+add_definitions(-DET_DEBUG)
+add_executable(Eternity     main.cpp
+                            ./Core/Window.cpp)
+                            
 target_link_libraries(Eternity vulkan glfw glm tinyobjloader stb_image)
