@@ -10,18 +10,8 @@ set(VENDORS ../vendor/glfw/include
             ../vendor/stb_image)
 
 include_directories(${VENDORS}
-                    Core
-                    Events
-                    Graphics 
-                    Input 
-                    Utils
                     ./)
 
-add_executable(eternity main.cpp
-                        Events/EventSystem.cpp
-                        Input/Input.cpp
-                        Core/Window.cpp
-                        Graphics/Camera.cpp
-                        Graphics/VulkanRenderer.cpp)
+add_executable(Eternity main.cpp)
 
-target_link_libraries(eternity vulkan glfw ${GLFW_LIBRARIES} glm tinyobjloader VulkanHelper stb_image)
+target_link_libraries(Eternity vulkan glfw glm tinyobjloader stb_image)
