@@ -1,6 +1,7 @@
 #include <mutex>
 #include <GLFW/glfw3.h>
 #include "Window.hpp"
+#include "Base.hpp"
 
 namespace Eternity
 {
@@ -15,7 +16,9 @@ namespace Eternity
         std::call_once(glfwInitFlag, [&]()
         {
             glfwInit();
+            glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
             pWindow = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
+            ET_ASSERT(pWindow);
         });
     }
 
@@ -54,4 +57,8 @@ namespace Eternity
         return height;
     }
 
+    GLFWwindow* GetWindow()
+    {
+        return pWindow;
+    }
 } // namespace Eternity

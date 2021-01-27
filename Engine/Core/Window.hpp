@@ -13,4 +13,6 @@ namespace Eternity
     int     GetWindowWidth();
     int     GetWindowHeight();
     void    GetWindowSize(int& width, int& height);
+
+    GLFWwindow* GetWindow();
 } // namespace Eternity

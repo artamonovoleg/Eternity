@@ -11,11 +11,13 @@ set(VENDORS ../vendor/glfw/include
 
 include_directories(${VENDORS}
                     ./
+                    ./API/Vulkan/
                     ./Core
                     ./Utils)
 
 add_definitions(-DET_DEBUG)
 add_executable(Eternity     main.cpp
-                            ./Core/Window.cpp)
+                            ./Core/Window.cpp
+                            ./API/Vulkan/Instance.cpp)
                             
 target_link_libraries(Eternity vulkan glfw glm tinyobjloader stb_image)
