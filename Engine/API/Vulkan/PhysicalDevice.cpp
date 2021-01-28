@@ -1,4 +1,3 @@
-#include <vector>
 #include <set>
 #include <string>
 #include "PhysicalDevice.hpp"
@@ -33,6 +32,8 @@ namespace Eternity
         auto indices = FindQueueFamilies(m_PhysicalDevice);
         m_GraphicsFamily    = indices.graphicsFamily.value();
         m_PresentFamily     = indices.presentFamily.value();
+
+        ET_TRACE("Physical device selected");
     }
 
     bool PhysicalDevice::CheckDeviceExtensionSupport(VkPhysicalDevice device) 
@@ -82,7 +83,7 @@ namespace Eternity
         return indices;
     }
 
-    PhysicalDevice::SwapchainSupportDetails PhysicalDevice::QuerySwapchainSupport(VkPhysicalDevice device) 
+    const PhysicalDevice::SwapchainSupportDetails PhysicalDevice::QuerySwapchainSupport(VkPhysicalDevice device) const
     {
         SwapchainSupportDetails details;
 
@@ -128,7 +129,7 @@ namespace Eternity
         return indices.isComplete() && extensionsSupported && swapchainAdequate  && supportedFeatures.samplerAnisotropy;
     }
 
-    uint32_t PhysicalDevice::GetQueueFamilyIndex(QueueType type)
+    const uint32_t PhysicalDevice::GetQueueFamilyIndex(QueueType type) const
     {
         switch (type)
         {
@@ -138,8 +139,13 @@ namespace Eternity
         }
     }
 
-    PhysicalDevice::SwapchainSupportDetails PhysicalDevice::GetSwapchainSupportDetails()
+    const PhysicalDevice::SwapchainSupportDetails PhysicalDevice::GetSwapchainSupportDetails() const
     {
         return QuerySwapchainSupport(m_PhysicalDevice);
     }
+
+    const std::vector<const char*>& PhysicalDevice::GetDeviceExtensions() const
+    {
+        return deviceExtensions;
+    };
 } // namespace Eternity

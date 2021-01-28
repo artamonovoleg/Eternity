@@ -1,5 +1,6 @@
 #pragma once
 #include <optional>
+#include <vector>
 #include <vulkan/vulkan.h>
 
 namespace Eternity
@@ -42,14 +43,15 @@ namespace Eternity
 
             bool                    CheckDeviceExtensionSupport(VkPhysicalDevice device);
             QueueFamilyIndices      FindQueueFamilies(VkPhysicalDevice device);
-            SwapchainSupportDetails QuerySwapchainSupport(VkPhysicalDevice device);
+            const SwapchainSupportDetails QuerySwapchainSupport(VkPhysicalDevice device) const;
             bool                    IsDeviceSuitable(VkPhysicalDevice device);
         public:
             PhysicalDevice(const Instance& instance, const Surface& surface);
             ~PhysicalDevice() = default;
 
-            uint32_t                GetQueueFamilyIndex(QueueType type);
-            SwapchainSupportDetails GetSwapchainSupportDetails();
+            const uint32_t                    GetQueueFamilyIndex(QueueType type) const;
+            const SwapchainSupportDetails     GetSwapchainSupportDetails() const;
+            const std::vector<const char*>&   GetDeviceExtensions() const;
             
             operator VkPhysicalDevice() { return m_PhysicalDevice; }
     };

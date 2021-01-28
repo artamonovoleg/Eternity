@@ -363,8 +363,8 @@ private:
 
         createInfo.pEnabledFeatures = &deviceFeatures;
 
-        createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
-        createInfo.ppEnabledExtensionNames = deviceExtensions.data();
+        createInfo.enabledExtensionCount = static_cast<uint32_t>(m_PhysicalDevice->GetDeviceExtensions().size());
+        createInfo.ppEnabledExtensionNames = m_PhysicalDevice->GetDeviceExtensions().data();
 
         if (m_Instance->ValidationLayersEnabled())
         {
