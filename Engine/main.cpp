@@ -59,6 +59,8 @@
 #include <set>
 #include <unordered_map>
 #include "Window.hpp"
+#include "EventSystem.hpp"
+#include "Input.hpp"
 #include "Instance.hpp"
 
 const uint32_t WIDTH = 800;
@@ -155,8 +157,10 @@ public:
         : window(Eternity::GetWindow())
     {
         // later delete this
-        glfwSetWindowUserPointer(window, this);
-        glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
+        Eternity::EventSystem::AddListener(EventType::WindowResizeEvent, [&](const Event& event)
+        {
+            framebufferResized = true;
+        });
     }
 private:
     // Rewrited code
@@ -171,7 +175,6 @@ private:
 
     VkInstance instance;
     std::shared_ptr<Eternity::Instance> m_Instance;
-    VkDebugUtilsMessengerEXT debugMessenger;
     VkSurfaceKHR surface;
 
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
@@ -226,11 +229,6 @@ private:
 
     bool framebufferResized = false;
 
-    static void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
-        auto app = reinterpret_cast<HelloTriangleApplication*>(glfwGetWindowUserPointer(window));
-        app->framebufferResized = true;
-    }
-
     void initVulkan() {
         createSurface();
         pickPhysicalDevice();
@@ -256,8 +254,10 @@ private:
         createSyncObjects();
     }
 
-    void mainLoop() {
-        while (!glfwWindowShouldClose(window)) {
+    void mainLoop() 
+    {
+        while (!glfwWindowShouldClose(window)) 
+        {
             glfwPollEvents();
             drawFrame();
         }
@@ -265,7 +265,8 @@ private:
         vkDeviceWaitIdle(device);
     }
 
-    void cleanupSwapChain() {
+    void cleanupSwapChain() 
+    {
         vkDestroyImageView(device, depthImageView, nullptr);
         vkDestroyImage(device, depthImage, nullptr);
         vkFreeMemory(device, depthImageMemory, nullptr);
@@ -311,7 +312,8 @@ private:
         vkDestroyBuffer(device, vertexBuffer, nullptr);
         vkFreeMemory(device, vertexBufferMemory, nullptr);
 
-        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+        {
             vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
             vkDestroySemaphore(device, imageAvailableSemaphores[i], nullptr);
             vkDestroyFence(device, inFlightFences[i], nullptr);
@@ -1513,12 +1515,23 @@ private:
     }
 };
 
+
+
 int main() 
 {
     Eternity::CreateWindow(800, 600, "Eternity");
+    Eternity::EventSystem::Init();
+    Eternity::Input::Init();
+
     HelloTriangleApplication app;
 
-    app.run();
+    while(!Eternity::Input::GetKey(Eternity::Key::Escape))
+    {
+        if (Eternity::Input::GetKey(Eternity::Key::A))
+            std::cout << "Esc" << std::endl;
+        Eternity::EventSystem::PollEvents();
+    }
+    // app.run();
 
     Eternity::DestroyWindow();
 

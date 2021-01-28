@@ -8,10 +8,10 @@
 //
 const std::vector<const char*> validationLayers = { "VK_LAYER_KHRONOS_validation" };
 
-#ifdef NDEBUG
-    const bool enableValidationLayers = false;
-#else
+#ifdef ET_DEBUG
     const bool enableValidationLayers = true;
+#else
+    const bool enableValidationLayers = false;
 #endif
 //
 
@@ -21,6 +21,7 @@ namespace Eternity
     {
         CreateInstance();
         SetupDebugMessenger();
+        ET_TRACE("Instance created");
     }
 
     Instance::~Instance()
@@ -28,6 +29,7 @@ namespace Eternity
         if (enableValidationLayers)
             DestroyDebugUtilsMessengerEXT();
         vkDestroyInstance(m_Instance, nullptr);
+        ET_TRACE("Instance destroyed");
     }
 
     void Instance::CreateInstance()
@@ -127,7 +129,17 @@ namespace Eternity
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) 
     {
-        std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
+        if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT)
+            ET_TRACE("[ Validation layer ]", pCallbackData->pMessage);
+        else
+        if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT )
+            ET_INFO("[ Validation layer ]", pCallbackData->pMessage);
+        else
+        if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
+            ET_WARN("[ Validation layer ]", pCallbackData->pMessage);
+        else
+        if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
+            ET_ERROR("[ Validation layer ]", pCallbackData->pMessage);
         return VK_FALSE;
     }
 

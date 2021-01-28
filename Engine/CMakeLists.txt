@@ -13,11 +13,15 @@ include_directories(${VENDORS}
                     ./
                     ./API/Vulkan/
                     ./Core
+                    ./Events
+                    ./Input
                     ./Utils)
 
 add_definitions(-DET_DEBUG)
 add_executable(Eternity     main.cpp
                             ./Core/Window.cpp
+                            ./Events/EventSystem.cpp
+                            ./Input/Input.cpp
                             ./API/Vulkan/Instance.cpp)
                             
 target_link_libraries(Eternity vulkan glfw glm tinyobjloader stb_image)
