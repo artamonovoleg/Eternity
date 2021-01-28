@@ -73,18 +73,6 @@ const std::string TEXTURE_PATH = "../textures/ground.jpg";
 
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
-const std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
-
-struct QueueFamilyIndices 
-{
-    std::optional<uint32_t> graphicsFamily;
-    std::optional<uint32_t> presentFamily;
-
-    bool isComplete() {
-        return graphicsFamily.has_value() && presentFamily.has_value();
-    }
-};
-
 struct Vertex {
     glm::vec3 pos;
     glm::vec2 texCoord;
@@ -164,9 +152,9 @@ private:
     // Rewrited code
     void Prepare()
     {
-        m_Instance = std::make_shared<Eternity::Instance>();
-        m_Surface = std::make_shared<Eternity::Surface>(*m_Instance);
-        m_PhysicalDevice = std::make_shared<Eternity::PhysicalDevice>(*m_Instance, *m_Surface);
+        m_Instance          = std::make_shared<Eternity::Instance>();
+        m_Surface           = std::make_shared<Eternity::Surface>(*m_Instance);
+        m_PhysicalDevice    = std::make_shared<Eternity::PhysicalDevice>(*m_Instance, *m_Surface);
         // while not all abstractions ready
         instance = *m_Instance;
         surface = *m_Surface;
