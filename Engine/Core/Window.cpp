@@ -33,11 +33,6 @@ namespace Eternity
         return glfwWindowShouldClose(pWindow);
     }
 
-    void    PollEvents()
-    {
-        glfwPollEvents();
-    }
-
     void    GetWindowSize(int& width, int& height)
     {
         glfwGetWindowSize(pWindow, &width, &height);

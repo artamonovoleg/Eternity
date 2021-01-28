@@ -62,6 +62,8 @@
 #include "EventSystem.hpp"
 #include "Input.hpp"
 #include "Instance.hpp"
+#include "Surface.hpp"
+#include "PhysicalDevice.hpp"
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -81,12 +83,6 @@ struct QueueFamilyIndices
     bool isComplete() {
         return graphicsFamily.has_value() && presentFamily.has_value();
     }
-};
-
-struct SwapChainSupportDetails {
-    VkSurfaceCapabilitiesKHR capabilities;
-    std::vector<VkSurfaceFormatKHR> formats;
-    std::vector<VkPresentModeKHR> presentModes;
 };
 
 struct Vertex {
@@ -142,6 +138,8 @@ struct UniformBufferObject
     alignas(16) glm::mat4 proj;
 };
 
+using namespace Eternity;
+
 class HelloTriangleApplication 
 {
 public:
@@ -167,8 +165,12 @@ private:
     void Prepare()
     {
         m_Instance = std::make_shared<Eternity::Instance>();
+        m_Surface = std::make_shared<Eternity::Surface>(*m_Instance);
+        m_PhysicalDevice = std::make_shared<Eternity::PhysicalDevice>(*m_Instance, *m_Surface);
         // while not all abstractions ready
         instance = *m_Instance;
+        surface = *m_Surface;
+        physicalDevice = *m_PhysicalDevice;
     }
 
     GLFWwindow* window;
@@ -176,8 +178,10 @@ private:
     VkInstance instance;
     std::shared_ptr<Eternity::Instance> m_Instance;
     VkSurfaceKHR surface;
+    std::shared_ptr<Eternity::Surface> m_Surface;
 
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
+    std::shared_ptr<Eternity::PhysicalDevice> m_PhysicalDevice;
     VkDevice device;
 
     VkQueue graphicsQueue;
@@ -230,8 +234,6 @@ private:
     bool framebufferResized = false;
 
     void initVulkan() {
-        createSurface();
-        pickPhysicalDevice();
         createLogicalDevice();
         createSwapChain();
         createImageViews();
@@ -256,9 +258,9 @@ private:
 
     void mainLoop() 
     {
-        while (!glfwWindowShouldClose(window)) 
+        while (!Eternity::WindowShouldClose()) 
         {
-            glfwPollEvents();
+            Eternity::EventSystem::PollEvents();
             drawFrame();
         }
 
@@ -322,12 +324,6 @@ private:
         vkDestroyCommandPool(device, commandPool, nullptr);
 
         vkDestroyDevice(device, nullptr);
-
-        vkDestroySurfaceKHR(instance, surface, nullptr);
-
-        glfwDestroyWindow(window);
-
-        glfwTerminate();
     }
 
     void recreateSwapChain() {
@@ -354,40 +350,9 @@ private:
         createCommandBuffers();
     }
 
-    void createSurface() {
-        if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create window surface!");
-        }
-    }
-
-    void pickPhysicalDevice() {
-        uint32_t deviceCount = 0;
-        vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
-
-        if (deviceCount == 0) {
-            throw std::runtime_error("failed to find GPUs with Vulkan support!");
-        }
-
-        std::vector<VkPhysicalDevice> devices(deviceCount);
-        vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
-
-        for (const auto& device : devices) {
-            if (isDeviceSuitable(device)) {
-                physicalDevice = device;
-                break;
-            }
-        }
-
-        if (physicalDevice == VK_NULL_HANDLE) {
-            throw std::runtime_error("failed to find a suitable GPU!");
-        }
-    }
-
     void createLogicalDevice() {
-        QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
-
         std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-        std::set<uint32_t> uniqueQueueFamilies = {indices.graphicsFamily.value(), indices.presentFamily.value()};
+        std::set<uint32_t> uniqueQueueFamilies = { m_PhysicalDevice->GetQueueFamilyIndex(QueueType::Graphics), m_PhysicalDevice->GetQueueFamilyIndex(QueueType::Present) };
 
         float queuePriority = 1.0f;
         for (uint32_t queueFamily : uniqueQueueFamilies) {
@@ -425,12 +390,12 @@ private:
             throw std::runtime_error("failed to create logical device!");
         }
 
-        vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
-        vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
+        vkGetDeviceQueue(device, m_PhysicalDevice->GetQueueFamilyIndex(QueueType::Graphics), 0, &graphicsQueue);
+        vkGetDeviceQueue(device, m_PhysicalDevice->GetQueueFamilyIndex(QueueType::Present), 0, &presentQueue);
     }
 
     void createSwapChain() {
-        SwapChainSupportDetails swapChainSupport = querySwapChainSupport(physicalDevice);
+        auto swapChainSupport = m_PhysicalDevice->GetSwapchainSupportDetails();
 
         VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
         VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
@@ -452,14 +417,18 @@ private:
         createInfo.imageArrayLayers = 1;
         createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-        QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
-        uint32_t queueFamilyIndices[] = {indices.graphicsFamily.value(), indices.presentFamily.value()};
+        uint32_t m_GraphicsFamilyIndex = m_PhysicalDevice->GetQueueFamilyIndex(QueueType::Graphics);
+        uint32_t m_PresentFamilyIndex = m_PhysicalDevice->GetQueueFamilyIndex(QueueType::Present);
+        uint32_t queueFamilyIndices[] = { m_GraphicsFamilyIndex, m_PresentFamilyIndex };
 
-        if (indices.graphicsFamily != indices.presentFamily) {
+        if (m_GraphicsFamilyIndex != m_PresentFamilyIndex) 
+        {
             createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
             createInfo.queueFamilyIndexCount = 2;
             createInfo.pQueueFamilyIndices = queueFamilyIndices;
-        } else {
+        } 
+        else 
+        {
             createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
         }
 
@@ -724,11 +693,10 @@ private:
     }
 
     void createCommandPool() {
-        QueueFamilyIndices queueFamilyIndices = findQueueFamilies(physicalDevice);
 
         VkCommandPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-        poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
+        poolInfo.queueFamilyIndex = m_PhysicalDevice->GetQueueFamilyIndex(QueueType::Graphics);
 
         if (vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
             throw std::runtime_error("failed to create graphics command pool!");
@@ -1407,95 +1375,6 @@ private:
         }
     }
 
-    SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device) {
-        SwapChainSupportDetails details;
-
-        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.capabilities);
-
-        uint32_t formatCount;
-        vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, nullptr);
-
-        if (formatCount != 0) {
-            details.formats.resize(formatCount);
-            vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, details.formats.data());
-        }
-
-        uint32_t presentModeCount;
-        vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, nullptr);
-
-        if (presentModeCount != 0) {
-            details.presentModes.resize(presentModeCount);
-            vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, details.presentModes.data());
-        }
-
-        return details;
-    }
-
-    bool isDeviceSuitable(VkPhysicalDevice device) {
-        QueueFamilyIndices indices = findQueueFamilies(device);
-
-        bool extensionsSupported = checkDeviceExtensionSupport(device);
-
-        bool swapChainAdequate = false;
-        if (extensionsSupported) {
-            SwapChainSupportDetails swapChainSupport = querySwapChainSupport(device);
-            swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
-        }
-
-        VkPhysicalDeviceFeatures supportedFeatures;
-        vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
-
-        return indices.isComplete() && extensionsSupported && swapChainAdequate  && supportedFeatures.samplerAnisotropy;
-    }
-
-    bool checkDeviceExtensionSupport(VkPhysicalDevice device) {
-        uint32_t extensionCount;
-        vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
-
-        std::vector<VkExtensionProperties> availableExtensions(extensionCount);
-        vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
-
-        std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
-
-        for (const auto& extension : availableExtensions) {
-            requiredExtensions.erase(extension.extensionName);
-        }
-
-        return requiredExtensions.empty();
-    }
-
-    QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) {
-        QueueFamilyIndices indices;
-
-        uint32_t queueFamilyCount = 0;
-        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
-
-        std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
-
-        int i = 0;
-        for (const auto& queueFamily : queueFamilies) {
-            if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-                indices.graphicsFamily = i;
-            }
-
-            VkBool32 presentSupport = false;
-            vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
-
-            if (presentSupport) {
-                indices.presentFamily = i;
-            }
-
-            if (indices.isComplete()) {
-                break;
-            }
-
-            i++;
-        }
-
-        return indices;
-    }
-
     static std::vector<char> readFile(const std::string& filename) {
         std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
@@ -1524,14 +1403,7 @@ int main()
     Eternity::Input::Init();
 
     HelloTriangleApplication app;
-
-    while(!Eternity::Input::GetKey(Eternity::Key::Escape))
-    {
-        if (Eternity::Input::GetKey(Eternity::Key::A))
-            std::cout << "Esc" << std::endl;
-        Eternity::EventSystem::PollEvents();
-    }
-    // app.run();
+    app.run();
 
     Eternity::DestroyWindow();
 

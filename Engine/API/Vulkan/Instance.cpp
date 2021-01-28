@@ -5,18 +5,18 @@
 #include "Base.hpp"
 #include "VkCheck.hpp"
 
-//
-const std::vector<const char*> validationLayers = { "VK_LAYER_KHRONOS_validation" };
-
-#ifdef ET_DEBUG
-    const bool enableValidationLayers = true;
-#else
-    const bool enableValidationLayers = false;
-#endif
-//
-
 namespace Eternity
 {
+    //
+    const std::vector<const char*> validationLayers = { "VK_LAYER_KHRONOS_validation" };
+
+    #ifdef ET_DEBUG
+        const bool enableValidationLayers = true;
+    #else
+        const bool enableValidationLayers = false;
+    #endif
+    //
+
     Instance::Instance()
     {
         CreateInstance();

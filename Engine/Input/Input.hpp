@@ -1,5 +1,7 @@
 #pragma once
+
 #include "KeyCodes.hpp"
+#include "MouseCodes.hpp"
 
 enum class PressState;
 
@@ -17,5 +19,9 @@ namespace Eternity
             static bool GetKey(uint16_t key);
             static bool GetKeyDown(uint16_t key);
             static bool GetKeyUp(uint16_t key);
+
+            static bool GetButton(uint16_t button);
+            static bool GetButtonDown(uint16_t button);
+            static bool GetButtonUp(uint16_t button);
     };
 } // namespace Eternity

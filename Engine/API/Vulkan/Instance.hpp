@@ -26,5 +26,6 @@ namespace Eternity
             std::vector<const char*>        GetExtensions();
 
             operator VkInstance() { return m_Instance; }
+            operator VkInstance() const { return m_Instance; }
     };
 } // namespace Eternity

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <functional>
 
 namespace Eternity
 {
@@ -8,11 +9,11 @@ namespace Eternity
     void    DestroyWindow();
 
     bool    WindowShouldClose();
-    void    PollEvents();
     
     int     GetWindowWidth();
     int     GetWindowHeight();
     void    GetWindowSize(int& width, int& height);
 
+    
     GLFWwindow* GetWindow();
 } // namespace Eternity

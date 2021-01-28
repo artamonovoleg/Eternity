@@ -30,6 +30,10 @@ namespace Eternity
     bool Input::GetKeyDown(uint16_t key) { return GetDown(key, keys); }
     bool Input::GetKeyUp(uint16_t key) { return GetUp(key, keys); }
 
+    bool Input::GetButton(uint16_t button) { return Get(button, buttons); }
+    bool Input::GetButtonDown(uint16_t button) { return GetDown(button, buttons); }
+    bool Input::GetButtonUp(uint16_t button) { return GetUp(button, buttons); }
+
     void Input::Init()
     {
         EventSystem::AddListener(EventType::KeyEvent, [](const Event& event)
