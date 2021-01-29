@@ -16,10 +16,17 @@ namespace Eternity
         { 
             EventSystem::SendEvent(MouseEvent(button, action));
         });
-        // glfwSetScrollCallback(glfwGetCurrentContext(), [](GLFWwindow* window, double xoffset, double yoffset)
-        // { OnWheelAction(yoffset); });
-        // glfwSetCursorPosCallback(glfwGetCurrentContext(), [](GLFWwindow* window, double xpos, double ypos)
-        // { OnCursorAction(xpos, ypos); });
+
+        glfwSetScrollCallback(Eternity::GetWindow(), [](GLFWwindow* window, double xoffset, double yoffset)
+        { 
+            EventSystem::SendEvent(MouseScrollEvent(xoffset, yoffset));
+        });
+
+        glfwSetCursorPosCallback(Eternity::GetWindow(), [](GLFWwindow* window, double xpos, double ypos)
+        { 
+            EventSystem::SendEvent(MouseMoveEvent(xpos, ypos));
+        });
+
         glfwSetFramebufferSizeCallback(Eternity::GetWindow(), [](GLFWwindow*, int width, int height)
         { 
             EventSystem::SendEvent(WindowResizeEvent(width, height));
