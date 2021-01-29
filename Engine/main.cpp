@@ -98,20 +98,6 @@ struct UniformBufferObject
     alignas(16) glm::mat4 proj;
 };
 
-struct Mesh
-{
-    std::vector<Vertex> vertices;
-    std::vector<uint32_t> indices;
-
-    VkBuffer vertexBuffer;
-    VkDeviceMemory vertexBufferMemory;
-    VkBuffer indexBuffer;
-    VkDeviceMemory indexBufferMemory;
-
-    // std::vector<VkBuffer> uniformBuffers;
-    // std::vector<VkDeviceMemory> uniformBuffersMemory;
-};
-
 using namespace Eternity;
 
 class HelloTriangleApplication 
@@ -185,8 +171,6 @@ private:
     VkDeviceMemory vertexBufferMemory;
     VkBuffer indexBuffer;
     VkDeviceMemory indexBufferMemory;
-
-    std::vector<Mesh> m_Meshes;
 
     std::vector<VkBuffer> uniformBuffers;
     std::vector<VkDeviceMemory> uniformBuffersMemory;
@@ -811,16 +795,6 @@ private:
                 indices.push_back(uniqueVertices[vertex]);
             }
         }
-
-        m_Meshes.push_back({});
-        m_Meshes.back().vertices            = vertices;
-        m_Meshes.back().indices             = indices;
-        auto vertexAlloc = CreateVertexBuffer(m_Meshes.back().vertices.data(), sizeof(m_Meshes.back().vertices[0]) * m_Meshes.back().vertices.size());
-        m_Meshes.back().vertexBuffer        = vertexAlloc.first;
-        m_Meshes.back().vertexBufferMemory  = vertexAlloc.second;
-        auto indexAlloc = CreateVertexBuffer(m_Meshes.back().indices.data(), sizeof(m_Meshes.back().indices[0]) * m_Meshes.back().indices.size());
-        m_Meshes.back().indexBuffer        = indexAlloc.first;
-        m_Meshes.back().indexBufferMemory  = indexAlloc.second;
     }
 
     void createVertexBuffer(const void* verticesData, uint32_t size)
@@ -1116,6 +1090,7 @@ private:
 
                 VkBuffer vertexBuffers[] = {vertexBuffer};
                 VkDeviceSize offsets[] = {0};
+
                 vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
 
                 vkCmdBindIndexBuffer(commandBuffers[i], indexBuffer, 0, VK_INDEX_TYPE_UINT32);
