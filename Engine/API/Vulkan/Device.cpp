@@ -60,6 +60,11 @@ namespace Eternity
         ET_TRACE("Device destroyed");
     }
 
+    void    Device::WaitIdle()
+    {
+        vkDeviceWaitIdle(m_Device);
+    }
+
     VkQueue Device::GetQueue(QueueType type)
     {
         switch (type)

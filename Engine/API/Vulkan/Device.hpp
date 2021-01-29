@@ -19,6 +19,8 @@ namespace Eternity
             Device(const Instance& instance, const PhysicalDevice& physicalDevice);
             ~Device();
 
+            void        WaitIdle();
+            
             VkQueue     GetQueue(QueueType type);
 
             operator VkDevice() { return m_Device; }
