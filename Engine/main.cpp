@@ -322,7 +322,7 @@ private:
 
         cleanupSwapChain();
 
-        m_Swapchain = std::make_shared<Eternity::Swapchain>(*m_Device);
+        m_Swapchain->Recreate();
         swapChain = *m_Swapchain;
         createRenderPass();
         createGraphicsPipeline();

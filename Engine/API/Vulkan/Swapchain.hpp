@@ -25,10 +25,13 @@ namespace Eternity
             
             void CreateSwapchain();
             void CreateImageViews();
+            void CleanupSwapchain();
         public:
             Swapchain(const Device& device);
             ~Swapchain();
 
+            void Recreate();
+            
             const std::vector<VkImage>& GetImages() const { return m_SwapchainImages; }
             const VkFormat GetImageFormat() const { return m_SwapchainImageFormat; }
             const VkExtent2D GetExtent() const { return m_SwapchainExtent; }

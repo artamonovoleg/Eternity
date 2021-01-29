@@ -17,12 +17,14 @@ namespace Eternity
     
     Swapchain::~Swapchain()
     {
-        for (auto imageView : m_SwapchainImageViews) 
-            vkDestroyImageView(m_Device, imageView, nullptr);
-        ET_TRACE("Swapchain image views destroyed");
+        CleanupSwapchain();
+    }
 
-        vkDestroySwapchainKHR(m_Device, m_Swapchain, nullptr);
-        ET_TRACE("Swapchain destroyed");
+    void Swapchain::Recreate()
+    {
+        CleanupSwapchain();
+        CreateSwapchain();
+        CreateImageViews();
     }
 
     void Swapchain::CreateSwapchain()
@@ -89,6 +91,16 @@ namespace Eternity
         for (uint32_t i = 0; i < m_SwapchainImages.size(); i++)
             m_SwapchainImageViews[i] = m_Device.CreateImageView(m_SwapchainImages[i], m_SwapchainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
         ET_TRACE("Swapchain image views created");
+    }
+
+    void Swapchain::CleanupSwapchain()
+    {
+        for (auto imageView : m_SwapchainImageViews) 
+            vkDestroyImageView(m_Device, imageView, nullptr);
+        ET_TRACE("Swapchain image views destroyed");
+
+        vkDestroySwapchainKHR(m_Device, m_Swapchain, nullptr);
+        ET_TRACE("Swapchain destroyed");
     }
 
     VkSurfaceFormatKHR Swapchain::ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) const
