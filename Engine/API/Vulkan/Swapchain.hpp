@@ -19,6 +19,8 @@ namespace Eternity
             std::vector<VkImageView>    m_SwapchainImageViews;
             std::vector<VkFramebuffer>  m_SwapchainFramebuffers;
 
+            uint32_t                    m_ActiveImageIndex;
+
             VkSurfaceFormatKHR  ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) const;
             VkPresentModeKHR    ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes) const;
             VkExtent2D          ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) const;
@@ -31,12 +33,16 @@ namespace Eternity
             ~Swapchain();
 
             void Recreate();
-            
+
+            VkResult AcquireNextImage(const VkSemaphore &presentCompleteSemaphore, VkFence fence);
+            VkResult QueuePresent(const VkQueue &presentQueue, const VkSemaphore &waitSemaphore);
+
             const std::vector<VkImage>& GetImages() const { return m_SwapchainImages; }
             const VkFormat GetImageFormat() const { return m_SwapchainImageFormat; }
             const VkExtent2D GetExtent() const { return m_SwapchainExtent; }
             const std::vector<VkImageView>& GetImageViews() const { return m_SwapchainImageViews; };
             const std::vector<VkFramebuffer>& GetFramebuffers() const { return m_SwapchainFramebuffers; }
+            const uint32_t& GetActiveImageIndex() const { return m_ActiveImageIndex; }
 
             operator VkSwapchainKHR() { return m_Swapchain; }
     };    

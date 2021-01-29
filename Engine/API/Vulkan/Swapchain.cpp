@@ -27,15 +27,37 @@ namespace Eternity
         CreateImageViews();
     }
 
+    VkResult Swapchain::AcquireNextImage(const VkSemaphore &presentCompleteSemaphore, VkFence fence)
+    {
+        if (fence != VK_NULL_HANDLE)
+            vkWaitForFences(m_Device, 1, &fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
+
+        VkResult aquireResult = vkAcquireNextImageKHR(m_Device, m_Swapchain, std::numeric_limits<uint64_t>::max(), presentCompleteSemaphore, VK_NULL_HANDLE, &m_ActiveImageIndex);
+
+        return aquireResult;
+    }
+
+    VkResult Swapchain::QueuePresent(const VkQueue &presentQueue, const VkSemaphore &waitSemaphore)
+    {
+        VkPresentInfoKHR presentInfo = {};
+        presentInfo.sType               = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+        presentInfo.waitSemaphoreCount  = 1;
+        presentInfo.pWaitSemaphores     = &waitSemaphore;
+        presentInfo.swapchainCount      = 1;
+        presentInfo.pSwapchains         = &m_Swapchain;
+        presentInfo.pImageIndices       = &m_ActiveImageIndex;
+        return vkQueuePresentKHR(presentQueue, &presentInfo);
+    }
+
     void Swapchain::CreateSwapchain()
     {
-        const PhysicalDevice&       physicalDevice     = m_Device.GetPhysicalDevice();
-        VkSurfaceKHR                surface            = physicalDevice.GetSurface();
-        auto swapchainSupport   = physicalDevice.GetSwapchainSupportDetails();
+        const PhysicalDevice&   physicalDevice     = m_Device.GetPhysicalDevice();
+        VkSurfaceKHR            surface            = physicalDevice.GetSurface();
+        auto                    swapchainSupport   = physicalDevice.GetSwapchainSupportDetails();
 
-        VkSurfaceFormatKHR  surfaceFormat   = ChooseSwapSurfaceFormat(swapchainSupport.formats);
-        VkPresentModeKHR    presentMode     = ChooseSwapPresentMode(swapchainSupport.presentModes);
-        VkExtent2D          extent          = ChooseSwapExtent(swapchainSupport.capabilities);
+        VkSurfaceFormatKHR      surfaceFormat   = ChooseSwapSurfaceFormat(swapchainSupport.formats);
+        VkPresentModeKHR        presentMode     = ChooseSwapPresentMode(swapchainSupport.presentModes);
+        VkExtent2D              extent          = ChooseSwapExtent(swapchainSupport.capabilities);
 
         uint32_t imageCount = swapchainSupport.capabilities.minImageCount + 1;
         if (swapchainSupport.capabilities.maxImageCount > 0 && imageCount > swapchainSupport.capabilities.maxImageCount)
