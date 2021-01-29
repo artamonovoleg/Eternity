@@ -128,6 +128,20 @@ struct UniformBufferObject
     alignas(16) glm::mat4 proj;
 };
 
+struct Mesh
+{
+    std::vector<Vertex> vertices;
+    std::vector<uint32_t> indices;
+
+    VkBuffer vertexBuffer;
+    VkDeviceMemory vertexBufferMemory;
+    VkBuffer indexBuffer;
+    VkDeviceMemory indexBufferMemory;
+
+    // std::vector<VkBuffer> uniformBuffers;
+    // std::vector<VkDeviceMemory> uniformBuffersMemory;
+};
+
 using namespace Eternity;
 
 class HelloTriangleApplication 
@@ -142,7 +156,6 @@ public:
     }
 
     HelloTriangleApplication()
-        : window(Eternity::GetWindow())
     {
         // later delete this
         Eternity::EventSystem::AddListener(EventType::WindowResizeEvent, [&](const Event& event)
@@ -160,30 +173,21 @@ private:
         m_Device            = std::make_shared<Eternity::Device>(*m_Instance, *m_PhysicalDevice);
         m_Swapchain         = std::make_shared<Eternity::Swapchain>(*m_Device);
 
-        // while not all abstractions ready
         instance = *m_Instance;
         surface = *m_Surface;
         physicalDevice = *m_PhysicalDevice;
         device = *m_Device;
-        graphicsQueue = m_Device->GetQueue(QueueType::Graphics);
-        presentQueue = m_Device->GetQueue(QueueType::Present);
         swapChain = *m_Swapchain;
     }
-
-    GLFWwindow* window;
 
     VkInstance instance;
     std::shared_ptr<Eternity::Instance> m_Instance;
     VkSurfaceKHR surface;
     std::shared_ptr<Eternity::Surface> m_Surface;
-    VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
+    VkPhysicalDevice physicalDevice;
     std::shared_ptr<Eternity::PhysicalDevice> m_PhysicalDevice;
     VkDevice device;
     std::shared_ptr<Eternity::Device> m_Device;
-
-
-    VkQueue graphicsQueue;
-    VkQueue presentQueue;
 
     VkSwapchainKHR swapChain;
     std::shared_ptr<Eternity::Swapchain> m_Swapchain;
@@ -212,6 +216,8 @@ private:
     VkBuffer indexBuffer;
     VkDeviceMemory indexBufferMemory;
 
+    std::vector<Mesh> m_Meshes;
+
     std::vector<VkBuffer> uniformBuffers;
     std::vector<VkDeviceMemory> uniformBuffersMemory;
 
@@ -239,8 +245,8 @@ private:
         createTextureImageView();
         createTextureSampler();
         loadModel();
-        createVertexBuffer();
-        createIndexBuffer();
+        createVertexBuffer(vertices.data(), sizeof(vertices[0]) * vertices.size());
+        createIndexBuffer(indices.data(), sizeof(indices[0]) * indices.size());
         createUniformBuffers();
         createDescriptorPool();
         createDescriptorSets();
@@ -310,13 +316,12 @@ private:
         vkDestroyCommandPool(device, commandPool, nullptr);
     }
 
-    void recreateSwapChain() {
+    void recreateSwapChain() 
+    {
         int width = 0, height = 0;
-        glfwGetFramebufferSize(window, &width, &height);
-        while (width == 0 || height == 0) {
-            glfwGetFramebufferSize(window, &width, &height);
+        glfwGetFramebufferSize(Eternity::GetWindow(), &width, &height);
+        while (width == 0 || height == 0) 
             glfwWaitEvents();
-        }
 
         m_Device->WaitIdle();
 
@@ -836,11 +841,21 @@ private:
                 indices.push_back(uniqueVertices[vertex]);
             }
         }
+
+        m_Meshes.push_back({});
+        m_Meshes.back().vertices            = vertices;
+        m_Meshes.back().indices             = indices;
+        auto vertexAlloc = CreateVertexBuffer(m_Meshes.back().vertices.data(), sizeof(m_Meshes.back().vertices[0]) * m_Meshes.back().vertices.size());
+        m_Meshes.back().vertexBuffer        = vertexAlloc.first;
+        m_Meshes.back().vertexBufferMemory  = vertexAlloc.second;
+        auto indexAlloc = CreateVertexBuffer(m_Meshes.back().indices.data(), sizeof(m_Meshes.back().indices[0]) * m_Meshes.back().indices.size());
+        m_Meshes.back().indexBuffer        = indexAlloc.first;
+        m_Meshes.back().indexBufferMemory  = indexAlloc.second;
     }
 
-    void createVertexBuffer() 
+    void createVertexBuffer(const void* verticesData, uint32_t size)
     {
-        VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+        VkDeviceSize bufferSize = size;
 
         VkBuffer stagingBuffer;
         VkDeviceMemory stagingBufferMemory;
@@ -848,7 +863,7 @@ private:
 
         void* data;
         vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-            memcpy(data, vertices.data(), (size_t) bufferSize);
+            std::memcpy(data, verticesData, (size_t) bufferSize);
         vkUnmapMemory(device, stagingBufferMemory);
 
         createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory);
@@ -859,9 +874,12 @@ private:
         vkFreeMemory(device, stagingBufferMemory, nullptr);
     }
 
-    void createIndexBuffer() 
+    std::pair<VkBuffer, VkDeviceMemory> CreateVertexBuffer(const void* verticesData, uint32_t size)
     {
-        VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
+        VkBuffer        buffer;
+        VkDeviceMemory  bufferMemory;
+
+        VkDeviceSize bufferSize = size;
 
         VkBuffer stagingBuffer;
         VkDeviceMemory stagingBufferMemory;
@@ -869,7 +887,30 @@ private:
 
         void* data;
         vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-            memcpy(data, indices.data(), (size_t) bufferSize);
+            std::memcpy(data, verticesData, (size_t) bufferSize);
+        vkUnmapMemory(device, stagingBufferMemory);
+
+        createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, buffer, bufferMemory);
+
+        copyBuffer(stagingBuffer, buffer, bufferSize);
+
+        vkDestroyBuffer(device, stagingBuffer, nullptr);
+        vkFreeMemory(device, stagingBufferMemory, nullptr);
+
+        return std::make_pair(buffer, bufferMemory);
+    }
+
+    void createIndexBuffer(const void* indicesData, uint32_t size) 
+    {
+        VkDeviceSize bufferSize = size;
+
+        VkBuffer stagingBuffer;
+        VkDeviceMemory stagingBufferMemory;
+        createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+
+        void* data;
+        vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+            std::memcpy(data, indicesData, (size_t) bufferSize);
         vkUnmapMemory(device, stagingBufferMemory);
 
         createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory);
@@ -878,6 +919,32 @@ private:
 
         vkDestroyBuffer(device, stagingBuffer, nullptr);
         vkFreeMemory(device, stagingBufferMemory, nullptr);
+    }
+
+    std::pair<VkBuffer, VkDeviceMemory> CreateIndexBuffer(const void* verticesData, uint32_t size)
+    {
+        VkBuffer        buffer;
+        VkDeviceMemory  bufferMemory;
+
+        VkDeviceSize bufferSize = size;
+
+        VkBuffer stagingBuffer;
+        VkDeviceMemory stagingBufferMemory;
+        createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+
+        void* data;
+        vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+            std::memcpy(data, verticesData, (size_t) bufferSize);
+        vkUnmapMemory(device, stagingBufferMemory);
+
+        createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, buffer, bufferMemory);
+
+        copyBuffer(stagingBuffer, buffer, bufferSize);
+
+        vkDestroyBuffer(device, stagingBuffer, nullptr);
+        vkFreeMemory(device, stagingBufferMemory, nullptr);
+
+        return std::make_pair(buffer, bufferMemory);
     }
 
     void createUniformBuffers() {
@@ -922,7 +989,8 @@ private:
             throw std::runtime_error("failed to allocate descriptor sets!");
         }
 
-        for (size_t i = 0; i < m_Swapchain->GetImages().size(); i++) {
+        for (size_t i = 0; i < m_Swapchain->GetImages().size(); i++) 
+        {
             VkDescriptorBufferInfo bufferInfo{};
             bufferInfo.buffer = uniformBuffers[i];
             bufferInfo.offset = 0;
@@ -1008,8 +1076,8 @@ private:
         submitInfo.commandBufferCount = 1;
         submitInfo.pCommandBuffers = &commandBuffer;
 
-        vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-        vkQueueWaitIdle(graphicsQueue);
+        vkQueueSubmit(m_Device->GetQueue(QueueType::Graphics), 1, &submitInfo, VK_NULL_HANDLE);
+        vkQueueWaitIdle(m_Device->GetQueue(QueueType::Graphics));
 
         vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
     }
@@ -1174,10 +1242,10 @@ private:
 
         vkResetFences(device, 1, &inFlightFences[currentFrame]);
 
-        if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFences[currentFrame]) != VK_SUCCESS) 
+        if (vkQueueSubmit(m_Device->GetQueue(QueueType::Present), 1, &submitInfo, inFlightFences[currentFrame]) != VK_SUCCESS) 
             throw std::runtime_error("failed to submit draw command buffer!");
 
-        result = m_Swapchain->QueuePresent(presentQueue, renderFinishedSemaphores[currentFrame]);
+        result = m_Swapchain->QueuePresent(m_Device->GetQueue(QueueType::Present), renderFinishedSemaphores[currentFrame]);
 
         if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized) 
         {
