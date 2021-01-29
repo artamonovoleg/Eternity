@@ -1,4 +1,3 @@
-#include <vector>
 #include <cstring>
 #include <GLFW/glfw3.h>
 #include "Instance.hpp"
@@ -74,17 +73,17 @@ namespace Eternity
         VkCheck(vkCreateInstance(&instanceCI, nullptr, &m_Instance));
     }
 
-    bool Instance::ValidationLayersEnabled()
+    const bool Instance::ValidationLayersEnabled() const
     {
         return enableValidationLayers;
     }
 
-    const std::vector<const char*>& Instance::GetLayers()
+    const std::vector<const char*>& Instance::GetLayers() const
     {
         return validationLayers;
     }
 
-    std::vector<const char*> Instance::GetExtensions()
+    const std::vector<const char*> Instance::GetExtensions() const
     {
         uint32_t glfwExtensionCount = 0;
         const char** glfwExtensions;

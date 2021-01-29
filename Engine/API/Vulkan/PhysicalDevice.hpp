@@ -54,5 +54,6 @@ namespace Eternity
             const std::vector<const char*>&   GetDeviceExtensions() const;
             
             operator VkPhysicalDevice() { return m_PhysicalDevice; }
+            operator VkPhysicalDevice() const { return m_PhysicalDevice; }
     };
 } // namespace Eternity

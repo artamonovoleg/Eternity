@@ -64,6 +64,7 @@
 #include "Instance.hpp"
 #include "Surface.hpp"
 #include "PhysicalDevice.hpp"
+#include "Device.hpp"
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -155,10 +156,15 @@ private:
         m_Instance          = std::make_shared<Eternity::Instance>();
         m_Surface           = std::make_shared<Eternity::Surface>(*m_Instance);
         m_PhysicalDevice    = std::make_shared<Eternity::PhysicalDevice>(*m_Instance, *m_Surface);
+        m_Device            = std::make_shared<Eternity::Device>(*m_Instance, *m_PhysicalDevice);
+
         // while not all abstractions ready
         instance = *m_Instance;
         surface = *m_Surface;
         physicalDevice = *m_PhysicalDevice;
+        device = *m_Device;
+        graphicsQueue = m_Device->GetQueue(QueueType::Graphics);
+        presentQueue = m_Device->GetQueue(QueueType::Present);
     }
 
     GLFWwindow* window;
@@ -167,10 +173,11 @@ private:
     std::shared_ptr<Eternity::Instance> m_Instance;
     VkSurfaceKHR surface;
     std::shared_ptr<Eternity::Surface> m_Surface;
-
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
     std::shared_ptr<Eternity::PhysicalDevice> m_PhysicalDevice;
     VkDevice device;
+    std::shared_ptr<Eternity::Device> m_Device;
+
 
     VkQueue graphicsQueue;
     VkQueue presentQueue;
@@ -222,7 +229,6 @@ private:
     bool framebufferResized = false;
 
     void initVulkan() {
-        createLogicalDevice();
         createSwapChain();
         createImageViews();
         createRenderPass();
@@ -310,8 +316,6 @@ private:
         }
 
         vkDestroyCommandPool(device, commandPool, nullptr);
-
-        vkDestroyDevice(device, nullptr);
     }
 
     void recreateSwapChain() {
@@ -336,50 +340,6 @@ private:
         createDescriptorPool();
         createDescriptorSets();
         createCommandBuffers();
-    }
-
-    void createLogicalDevice() {
-        std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-        std::set<uint32_t> uniqueQueueFamilies = { m_PhysicalDevice->GetQueueFamilyIndex(QueueType::Graphics), m_PhysicalDevice->GetQueueFamilyIndex(QueueType::Present) };
-
-        float queuePriority = 1.0f;
-        for (uint32_t queueFamily : uniqueQueueFamilies) {
-            VkDeviceQueueCreateInfo queueCreateInfo{};
-            queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-            queueCreateInfo.queueFamilyIndex = queueFamily;
-            queueCreateInfo.queueCount = 1;
-            queueCreateInfo.pQueuePriorities = &queuePriority;
-            queueCreateInfos.push_back(queueCreateInfo);
-        }
-
-        VkPhysicalDeviceFeatures deviceFeatures{};
-        deviceFeatures.samplerAnisotropy = VK_TRUE;
-
-        VkDeviceCreateInfo createInfo{};
-        createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-
-        createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
-        createInfo.pQueueCreateInfos = queueCreateInfos.data();
-
-        createInfo.pEnabledFeatures = &deviceFeatures;
-
-        createInfo.enabledExtensionCount = static_cast<uint32_t>(m_PhysicalDevice->GetDeviceExtensions().size());
-        createInfo.ppEnabledExtensionNames = m_PhysicalDevice->GetDeviceExtensions().data();
-
-        if (m_Instance->ValidationLayersEnabled())
-        {
-            createInfo.enabledLayerCount    = static_cast<uint32_t>(m_Instance->GetLayers().size());
-            createInfo.ppEnabledLayerNames  = m_Instance->GetLayers().data();
-        } else {
-            createInfo.enabledLayerCount = 0;
-        }
-
-        if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create logical device!");
-        }
-
-        vkGetDeviceQueue(device, m_PhysicalDevice->GetQueueFamilyIndex(QueueType::Graphics), 0, &graphicsQueue);
-        vkGetDeviceQueue(device, m_PhysicalDevice->GetQueueFamilyIndex(QueueType::Present), 0, &presentQueue);
     }
 
     void createSwapChain() {

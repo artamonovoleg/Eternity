@@ -19,7 +19,7 @@ namespace Eternity
 
         glfwSetScrollCallback(Eternity::GetWindow(), [](GLFWwindow* window, double xoffset, double yoffset)
         { 
-            EventSystem::SendEvent(MouseScrollEvent(xoffset, yoffset));
+            EventSystem::SendEvent(MouseScrollEvent(yoffset));
         });
 
         glfwSetCursorPosCallback(Eternity::GetWindow(), [](GLFWwindow* window, double xpos, double ypos)

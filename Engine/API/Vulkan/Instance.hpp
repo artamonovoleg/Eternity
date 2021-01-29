@@ -1,4 +1,5 @@
 #pragma once
+#include <vector>
 #include <vulkan/vulkan.h>
 
 namespace Eternity
@@ -20,10 +21,10 @@ namespace Eternity
             Instance();
             ~Instance();
 
-            bool ValidationLayersEnabled();
+            const bool                          ValidationLayersEnabled() const;
             
-            const std::vector<const char*>& GetLayers();
-            std::vector<const char*>        GetExtensions();
+            const std::vector<const char*>&     GetLayers() const;
+            const std::vector<const char*>      GetExtensions() const;
 
             operator VkInstance() { return m_Instance; }
             operator VkInstance() const { return m_Instance; }
