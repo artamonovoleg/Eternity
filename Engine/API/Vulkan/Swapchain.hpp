@@ -37,12 +37,12 @@ namespace Eternity
             VkResult AcquireNextImage(const VkSemaphore &presentCompleteSemaphore, VkFence fence);
             VkResult QueuePresent(const VkQueue &presentQueue, const VkSemaphore &waitSemaphore);
 
-            const std::vector<VkImage>& GetImages() const { return m_SwapchainImages; }
-            const VkFormat GetImageFormat() const { return m_SwapchainImageFormat; }
-            const VkExtent2D GetExtent() const { return m_SwapchainExtent; }
-            const std::vector<VkImageView>& GetImageViews() const { return m_SwapchainImageViews; };
-            const std::vector<VkFramebuffer>& GetFramebuffers() const { return m_SwapchainFramebuffers; }
-            const uint32_t& GetActiveImageIndex() const { return m_ActiveImageIndex; }
+            const std::vector<VkImage>&         GetImages()             const { return m_SwapchainImages; }
+            const VkFormat                      GetImageFormat()        const { return m_SwapchainImageFormat; }
+            const VkExtent2D                    GetExtent()             const { return m_SwapchainExtent; }
+            const std::vector<VkImageView>&     GetImageViews()         const { return m_SwapchainImageViews; };
+            const std::vector<VkFramebuffer>&   GetFramebuffers()       const { return m_SwapchainFramebuffers; }
+            const uint32_t&                     GetActiveImageIndex()   const { return m_ActiveImageIndex; }
 
             operator VkSwapchainKHR() { return m_Swapchain; }
     };    
