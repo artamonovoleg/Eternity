@@ -19,10 +19,13 @@ namespace Eternity
             Device(const Instance& instance, const PhysicalDevice& physicalDevice);
             ~Device();
 
-            void        WaitIdle();
+            void                    WaitIdle();
+            VkImageView             CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags) const;
             
-            VkQueue     GetQueue(QueueType type);
+            const PhysicalDevice&   GetPhysicalDevice() const { return m_PhysicalDevice; }
+            VkQueue                 GetQueue(QueueType type);
 
             operator VkDevice() { return m_Device; }
+            operator VkDevice() const { return m_Device; }
     };
 }

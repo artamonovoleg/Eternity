@@ -139,13 +139,10 @@ namespace Eternity
         }
     }
 
-    const PhysicalDevice::SwapchainSupportDetails PhysicalDevice::GetSwapchainSupportDetails() const
-    {
-        return QuerySwapchainSupport(m_PhysicalDevice);
-    }
+    const PhysicalDevice::SwapchainSupportDetails PhysicalDevice::GetSwapchainSupportDetails() const { return QuerySwapchainSupport(m_PhysicalDevice); }
 
-    const std::vector<const char*>& PhysicalDevice::GetDeviceExtensions() const
-    {
-        return deviceExtensions;
-    };
+    const std::vector<const char*>& PhysicalDevice::GetDeviceExtensions() const { return deviceExtensions; };
+
+    const Surface&                      PhysicalDevice::GetSurface() const { return m_Surface; }
+
 } // namespace Eternity

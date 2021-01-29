@@ -65,6 +65,25 @@ namespace Eternity
         vkDeviceWaitIdle(m_Device);
     }
 
+    VkImageView Device::CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags) const
+    {
+        VkImageViewCreateInfo viewInfo{};
+        viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        viewInfo.image = image;
+        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        viewInfo.format = format;
+        viewInfo.subresourceRange.aspectMask = aspectFlags;
+        viewInfo.subresourceRange.baseMipLevel = 0;
+        viewInfo.subresourceRange.levelCount = 1;
+        viewInfo.subresourceRange.baseArrayLayer = 0;
+        viewInfo.subresourceRange.layerCount = 1;
+
+        VkImageView imageView;
+        VkCheck(vkCreateImageView(m_Device, &viewInfo, nullptr, &imageView));
+
+        return imageView;
+    }
+    
     VkQueue Device::GetQueue(QueueType type)
     {
         switch (type)

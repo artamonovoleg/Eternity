@@ -49,10 +49,10 @@ namespace Eternity
             PhysicalDevice(const Instance& instance, const Surface& surface);
             ~PhysicalDevice() = default;
 
-            const uint32_t                    GetQueueFamilyIndex(QueueType type) const;
-            const SwapchainSupportDetails     GetSwapchainSupportDetails() const;
-            const std::vector<const char*>&   GetDeviceExtensions() const;
-            
+            const uint32_t                      GetQueueFamilyIndex(QueueType type) const;
+            const SwapchainSupportDetails       GetSwapchainSupportDetails() const;
+            const std::vector<const char*>&     GetDeviceExtensions() const;
+            const Surface&                      GetSurface() const;
             operator VkPhysicalDevice() { return m_PhysicalDevice; }
             operator VkPhysicalDevice() const { return m_PhysicalDevice; }
     };
