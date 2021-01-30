@@ -36,6 +36,7 @@
 #include "PhysicalDevice.hpp"
 #include "Device.hpp"
 #include "Swapchain.hpp"
+#include "RenderPass.hpp"
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -45,7 +46,8 @@ const std::string TEXTURE_PATH = "../textures/ground.jpg";
 
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
-struct Vertex {
+struct Vertex 
+{
     glm::vec3 pos;
     glm::vec2 texCoord;
 
@@ -100,7 +102,7 @@ struct UniformBufferObject
 
 using namespace Eternity;
 
-class HelloTriangleApplication 
+class VulkanApp 
 {
 public:
     void run() 
@@ -111,7 +113,7 @@ public:
         cleanup();
     }
 
-    HelloTriangleApplication()
+    VulkanApp()
     {
         // later delete this
         Eternity::EventSystem::AddListener(EventType::WindowResizeEvent, [&](const Event& event)
@@ -120,20 +122,29 @@ public:
         });
     }
 private:
-    // Rewrited code
+    /// Rewrited code
+    VkExtent2D ChooseSwapExtent();
+
     void Prepare()
     {
         m_Instance          = std::make_shared<Eternity::Instance>();
         m_Surface           = std::make_shared<Eternity::Surface>(*m_Instance);
         m_PhysicalDevice    = std::make_shared<Eternity::PhysicalDevice>(*m_Instance, *m_Surface);
         m_Device            = std::make_shared<Eternity::Device>(*m_Instance, *m_PhysicalDevice);
-        m_Swapchain         = std::make_shared<Eternity::Swapchain>(*m_Device);
+        m_Swapchain         = std::make_shared<Eternity::Swapchain>(ChooseSwapExtent(), *m_Device);
+        
+        // Attachment colorAttachment(Attachment::Type::Color, 0, m_Swapchain->GetImageFormat());
+        // Attachment depthAttachment(Attachment::Type::Depth, 1, findDepthFormat());
+
+        // m_RenderPass        = std::make_shared<Eternity::RenderPass>(*m_Device, std::vector{ colorAttachment }, depthAttachment);
 
         instance = *m_Instance;
         surface = *m_Surface;
         physicalDevice = *m_PhysicalDevice;
         device = *m_Device;
         swapChain = *m_Swapchain;
+
+        // renderPass = *m_RenderPass;
     }
 
     VkInstance instance;
@@ -149,7 +160,10 @@ private:
     std::shared_ptr<Eternity::Swapchain> m_Swapchain;
     std::vector<VkFramebuffer> swapChainFramebuffers;
 
+    ///
     VkRenderPass renderPass;
+    std::shared_ptr<Eternity::RenderPass> m_RenderPass;
+
     VkDescriptorSetLayout descriptorSetLayout;
     VkPipelineLayout pipelineLayout;
     VkPipeline graphicsPipeline;
@@ -188,7 +202,8 @@ private:
 
     bool framebufferResized = false;
 
-    void initVulkan() {
+    void initVulkan() 
+    {
         createRenderPass();
         createDescriptorSetLayout();
         createGraphicsPipeline();
@@ -281,7 +296,7 @@ private:
 
         cleanupSwapChain();
 
-        m_Swapchain->Recreate();
+        m_Swapchain->Recreate(ChooseSwapExtent());
         swapChain = *m_Swapchain;
         createRenderPass();
         createGraphicsPipeline();
@@ -294,39 +309,18 @@ private:
     }
 
     void createRenderPass() {
-        VkAttachmentDescription colorAttachment{};
-        colorAttachment.format = m_Swapchain->GetImageFormat();
-        colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-        colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
-        VkAttachmentDescription depthAttachment{};
-        depthAttachment.format = findDepthFormat();
-        depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-        depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        Attachment colorAttachment(Attachment::Type::Color, 0, m_Swapchain->GetImageFormat());
+        Attachment depthAttachment(Attachment::Type::Depth, 1, findDepthFormat());
 
-        VkAttachmentReference colorAttachmentRef{};
-        colorAttachmentRef.attachment = 0;
-        colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-        VkAttachmentReference depthAttachmentRef{};
-        depthAttachmentRef.attachment = 1;
-        depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        // m_RenderPass        = std::make_shared<Eternity::RenderPass>(*m_Device, std::vector{ colorAttachment }, depthAttachment);
+        // renderPass = *m_RenderPass;
 
         VkSubpassDescription subpass{};
         subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
         subpass.colorAttachmentCount = 1;
-        subpass.pColorAttachments = &colorAttachmentRef;
-        subpass.pDepthStencilAttachment = &depthAttachmentRef;
+        subpass.pColorAttachments = &colorAttachment.GetReference();
+        subpass.pDepthStencilAttachment = &depthAttachment.GetReference();
 
         VkSubpassDependency dependency{};
         dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
@@ -1239,7 +1233,31 @@ private:
     }
 };
 
+VkExtent2D VulkanApp::ChooseSwapExtent()
+{
+    VkSurfaceCapabilitiesKHR capabilities {};
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(*m_PhysicalDevice, *m_Surface, &capabilities);
 
+    if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) 
+    {
+        return capabilities.currentExtent;
+    } 
+    else 
+    {
+        int width, height;
+        glfwGetFramebufferSize(Eternity::GetWindow(), &width, &height);
+
+        VkExtent2D actualExtent = {
+            static_cast<uint32_t>(width),
+            static_cast<uint32_t>(height)
+        };
+
+        actualExtent.width  = std::max(capabilities.minImageExtent.width, std::min(capabilities.maxImageExtent.width, actualExtent.width));
+        actualExtent.height = std::max(capabilities.minImageExtent.height, std::min(capabilities.maxImageExtent.height, actualExtent.height));
+
+        return actualExtent;
+    }
+}
 
 int main() 
 {
@@ -1247,7 +1265,7 @@ int main()
     Eternity::EventSystem::Init();
     Eternity::Input::Init();
 
-    HelloTriangleApplication app;
+    VulkanApp app;
     app.run();
 
     Eternity::DestroyWindow();

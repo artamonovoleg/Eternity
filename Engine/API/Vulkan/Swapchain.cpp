@@ -1,6 +1,5 @@
 #include <GLFW/glfw3.h>
 #include "Swapchain.hpp"
-#include "Window.hpp"
 #include "VkCheck.hpp"
 #include "Surface.hpp"
 #include "PhysicalDevice.hpp"
@@ -8,8 +7,8 @@
 
 namespace Eternity
 {
-    Swapchain::Swapchain(const Device& device)
-        : m_Device(device)
+    Swapchain::Swapchain(const VkExtent2D& extent, const Device& device)
+        : m_Extent(extent), m_Device(device)
     {
         CreateSwapchain();
         CreateImageViews();
@@ -20,8 +19,10 @@ namespace Eternity
         CleanupSwapchain();
     }
 
-    void Swapchain::Recreate()
+    void Swapchain::Recreate(const VkExtent2D& currentExtent)
     {
+        m_Extent = currentExtent;
+
         CleanupSwapchain();
         CreateSwapchain();
         CreateImageViews();
@@ -51,13 +52,12 @@ namespace Eternity
 
     void Swapchain::CreateSwapchain()
     {
-        const PhysicalDevice&   physicalDevice     = m_Device.GetPhysicalDevice();
-        VkSurfaceKHR            surface            = physicalDevice.GetSurface();
-        auto                    swapchainSupport   = physicalDevice.GetSwapchainSupportDetails();
+        const PhysicalDevice&   physicalDevice      = m_Device.GetPhysicalDevice();
+        VkSurfaceKHR            surface             = physicalDevice.GetSurface();
+        auto                    swapchainSupport    = physicalDevice.GetSwapchainSupportDetails();
 
-        VkSurfaceFormatKHR      surfaceFormat   = ChooseSwapSurfaceFormat(swapchainSupport.formats);
-        VkPresentModeKHR        presentMode     = ChooseSwapPresentMode(swapchainSupport.presentModes);
-        VkExtent2D              extent          = ChooseSwapExtent(swapchainSupport.capabilities);
+        VkSurfaceFormatKHR      surfaceFormat       = ChooseSurfaceFormat(swapchainSupport.formats);
+        VkPresentModeKHR        presentMode         = ChoosePresentMode(swapchainSupport.presentModes);
 
         uint32_t imageCount = swapchainSupport.capabilities.minImageCount + 1;
         if (swapchainSupport.capabilities.maxImageCount > 0 && imageCount > swapchainSupport.capabilities.maxImageCount)
@@ -70,7 +70,7 @@ namespace Eternity
         createInfo.minImageCount    = imageCount;
         createInfo.imageFormat      = surfaceFormat.format;
         createInfo.imageColorSpace  = surfaceFormat.colorSpace;
-        createInfo.imageExtent      = extent;
+        createInfo.imageExtent      = m_Extent;
         createInfo.imageArrayLayers = 1;
         createInfo.imageUsage       = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
@@ -89,35 +89,34 @@ namespace Eternity
             createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
         }
 
-        createInfo.preTransform = swapchainSupport.capabilities.currentTransform;
-        createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-        createInfo.presentMode = presentMode;
-        createInfo.clipped = VK_TRUE;
+        createInfo.preTransform     = swapchainSupport.capabilities.currentTransform;
+        createInfo.compositeAlpha   = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+        createInfo.presentMode      = presentMode;
+        createInfo.clipped          = VK_TRUE;
 
         VkCheck(vkCreateSwapchainKHR(m_Device, &createInfo, nullptr, &m_Swapchain));
 
         vkGetSwapchainImagesKHR(m_Device, m_Swapchain, &imageCount, nullptr);
-        m_SwapchainImages.resize(imageCount);
-        vkGetSwapchainImagesKHR(m_Device, m_Swapchain, &imageCount, m_SwapchainImages.data());
+        m_Images.resize(imageCount);
+        vkGetSwapchainImagesKHR(m_Device, m_Swapchain, &imageCount, m_Images.data());
 
-        m_SwapchainImageFormat = surfaceFormat.format;
-        m_SwapchainExtent = extent;
+        m_ImageFormat  = surfaceFormat.format;
 
         ET_TRACE("Swapchain created");
     }
 
     void Swapchain::CreateImageViews() 
     {
-        m_SwapchainImageViews.resize(m_SwapchainImages.size());
+        m_ImageViews.resize(m_Images.size());
 
-        for (uint32_t i = 0; i < m_SwapchainImages.size(); i++)
-            m_SwapchainImageViews[i] = m_Device.CreateImageView(m_SwapchainImages[i], m_SwapchainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
+        for (uint32_t i = 0; i < m_Images.size(); i++)
+            m_ImageViews[i] = m_Device.CreateImageView(m_Images[i], m_ImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
         ET_TRACE("Swapchain image views created");
     }
 
     void Swapchain::CleanupSwapchain()
     {
-        for (auto imageView : m_SwapchainImageViews) 
+        for (auto imageView : m_ImageViews) 
             vkDestroyImageView(m_Device, imageView, nullptr);
         ET_TRACE("Swapchain image views destroyed");
 
@@ -125,7 +124,7 @@ namespace Eternity
         ET_TRACE("Swapchain destroyed");
     }
 
-    VkSurfaceFormatKHR Swapchain::ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) const
+    VkSurfaceFormatKHR Swapchain::ChooseSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) const
     {
         for (const auto& availableFormat : availableFormats) 
         {
@@ -136,7 +135,7 @@ namespace Eternity
         return availableFormats[0];
     }
 
-    VkPresentModeKHR Swapchain::ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes) const
+    VkPresentModeKHR Swapchain::ChoosePresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes) const
     {
         for (const auto& availablePresentMode : availablePresentModes) 
         {
@@ -147,26 +146,11 @@ namespace Eternity
         return VK_PRESENT_MODE_FIFO_KHR;
     }
 
-    VkExtent2D Swapchain::ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) const
-    {
-        if (capabilities.currentExtent.width != UINT32_MAX) 
-        {
-            return capabilities.currentExtent;
-        } 
-        else 
-        {
-            int width, height;
-            glfwGetFramebufferSize(Eternity::GetWindow(), &width, &height);
 
-            VkExtent2D actualExtent = {
-                static_cast<uint32_t>(width),
-                static_cast<uint32_t>(height)
-            };
-
-            actualExtent.width = std::max(capabilities.minImageExtent.width, std::min(capabilities.maxImageExtent.width, actualExtent.width));
-            actualExtent.height = std::max(capabilities.minImageExtent.height, std::min(capabilities.maxImageExtent.height, actualExtent.height));
-
-            return actualExtent;
-        }
-    }
+    const std::vector<VkImage>&         Swapchain::GetImages()             const { return m_Images; }
+    const VkFormat                      Swapchain::GetImageFormat()        const { return m_ImageFormat; }
+    const VkExtent2D                    Swapchain::GetExtent()             const { return m_Extent; }
+    const std::vector<VkImageView>&     Swapchain::GetImageViews()         const { return m_ImageViews; };
+    const std::vector<VkFramebuffer>&   Swapchain::GetFramebuffers()       const { return m_Framebuffers; }
+    const uint32_t&                     Swapchain::GetActiveImageIndex()   const { return m_ActiveImageIndex; }
 } // namespace Eternity

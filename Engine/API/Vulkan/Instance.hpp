@@ -10,7 +10,7 @@ namespace Eternity
             VkInstance                  m_Instance = VK_NULL_HANDLE;
             VkDebugUtilsMessengerEXT    m_DebugMessenger = VK_NULL_HANDLE;
 
-            void CreateInstance();
+            void        CreateInstance();
             // Validation layers
             bool        CheckValidationLayersSupport();
             void        PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);

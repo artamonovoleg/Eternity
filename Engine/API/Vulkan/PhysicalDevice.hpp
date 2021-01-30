@@ -41,10 +41,10 @@ namespace Eternity
             uint32_t            m_GraphicsFamily;
             uint32_t            m_PresentFamily;
 
-            bool                    CheckDeviceExtensionSupport(VkPhysicalDevice device);
-            QueueFamilyIndices      FindQueueFamilies(VkPhysicalDevice device);
-            const SwapchainSupportDetails QuerySwapchainSupport(VkPhysicalDevice device) const;
-            bool                    IsDeviceSuitable(VkPhysicalDevice device);
+            bool                                CheckDeviceExtensionSupport(VkPhysicalDevice device);
+            QueueFamilyIndices                  FindQueueFamilies(VkPhysicalDevice device);
+            const SwapchainSupportDetails       QuerySwapchainSupport(VkPhysicalDevice device) const;
+            bool                                IsDeviceSuitable(VkPhysicalDevice device);
         public:
             PhysicalDevice(const Instance& instance, const Surface& surface);
             ~PhysicalDevice() = default;
