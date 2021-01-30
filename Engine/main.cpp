@@ -133,18 +133,12 @@ private:
         m_Device            = std::make_shared<Eternity::Device>(*m_Instance, *m_PhysicalDevice);
         m_Swapchain         = std::make_shared<Eternity::Swapchain>(ChooseSwapExtent(), *m_Device);
         
-        // Attachment colorAttachment(Attachment::Type::Color, 0, m_Swapchain->GetImageFormat());
-        // Attachment depthAttachment(Attachment::Type::Depth, 1, findDepthFormat());
-
-        // m_RenderPass        = std::make_shared<Eternity::RenderPass>(*m_Device, std::vector{ colorAttachment }, depthAttachment);
-
         instance = *m_Instance;
         surface = *m_Surface;
         physicalDevice = *m_PhysicalDevice;
         device = *m_Device;
         swapChain = *m_Swapchain;
 
-        // renderPass = *m_RenderPass;
     }
 
     VkInstance instance;
@@ -313,14 +307,19 @@ private:
         Attachment colorAttachment(Attachment::Type::Color, 0, m_Swapchain->GetImageFormat());
         Attachment depthAttachment(Attachment::Type::Depth, 1, findDepthFormat());
 
-        // m_RenderPass        = std::make_shared<Eternity::RenderPass>(*m_Device, std::vector{ colorAttachment }, depthAttachment);
-        // renderPass = *m_RenderPass;
+        VkAttachmentReference   colorRef{};
+        colorRef.attachment = colorAttachment.GetBinding();
+        colorRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        
+        VkAttachmentReference   depthRef{};
+        depthRef.attachment = depthAttachment.GetBinding();
+        depthRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
         VkSubpassDescription subpass{};
         subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
         subpass.colorAttachmentCount = 1;
-        subpass.pColorAttachments = &colorAttachment.GetReference();
-        subpass.pDepthStencilAttachment = &depthAttachment.GetReference();
+        subpass.pColorAttachments = &colorRef;
+        subpass.pDepthStencilAttachment = &depthRef;
 
         VkSubpassDependency dependency{};
         dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
