@@ -102,6 +102,8 @@ struct UniformBufferObject
 
 using namespace Eternity;
 
+
+
 class VulkanApp 
 {
 public:
@@ -174,6 +176,7 @@ private:
 
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
+
     VkBuffer vertexBuffer;
     VkDeviceMemory vertexBufferMemory;
     VkBuffer indexBuffer;
@@ -198,11 +201,12 @@ private:
     void initVulkan() 
     {
         CreateRenderPass();
-        createDescriptorSetLayout();
-        createGraphicsPipeline();
-        createCommandPool();
         createDepthResources();
         createFramebuffers();
+        createCommandPool();
+
+        createDescriptorSetLayout();
+        createGraphicsPipeline();
         createTextureImage();
         createTextureImageView();
         createTextureSampler();
@@ -290,10 +294,12 @@ private:
 
         m_Swapchain->Recreate(ChooseSwapExtent());
         swapChain = *m_Swapchain;
+
         CreateRenderPass();
-        createGraphicsPipeline();
         createDepthResources();
         createFramebuffers();
+
+        createGraphicsPipeline();
         createUniformBuffers();
         createDescriptorPool();
         createDescriptorSets();
@@ -418,11 +424,11 @@ private:
         colorBlendAttachment.blendEnable = VK_FALSE;
 
         VkPipelineColorBlendStateCreateInfo colorBlending{};
-        colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-        colorBlending.logicOpEnable = VK_FALSE;
-        colorBlending.logicOp = VK_LOGIC_OP_COPY;
-        colorBlending.attachmentCount = 1;
-        colorBlending.pAttachments = &colorBlendAttachment;
+        colorBlending.sType             = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+        colorBlending.logicOpEnable     = VK_FALSE;
+        colorBlending.logicOp           = VK_LOGIC_OP_COPY;
+        colorBlending.attachmentCount   = 1;
+        colorBlending.pAttachments      = &colorBlendAttachment;
         colorBlending.blendConstants[0] = 0.0f;
         colorBlending.blendConstants[1] = 0.0f;
         colorBlending.blendConstants[2] = 0.0f;
@@ -1045,7 +1051,7 @@ private:
 
                 vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
-                VkBuffer vertexBuffers[] = {vertexBuffer};
+                VkBuffer vertexBuffers[] = { vertexBuffer };
                 VkDeviceSize offsets[] = {0};
 
                 vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
@@ -1055,7 +1061,7 @@ private:
                 vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[i], 0, nullptr);
 
                 vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
-
+                
             vkCmdEndRenderPass(commandBuffers[i]);
 
             if (vkEndCommandBuffer(commandBuffers[i]) != VK_SUCCESS) {

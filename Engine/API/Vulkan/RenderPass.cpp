@@ -22,9 +22,9 @@ namespace Eternity
             colorRefs.emplace_back(colorRef);
         }
 
-        VkAttachmentReference   depthRef{};
+        VkAttachmentReference depthRef{};
         depthRef.attachment = depthAttachment.GetBinding();
-        depthRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        depthRef.layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
         VkSubpassDescription subpass{};
         subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
