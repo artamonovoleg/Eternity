@@ -6,15 +6,13 @@
 
 namespace Eternity
 {
-    Image::Image(const Device& device, VkExtent2D extent, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties)
+    Image::Image(const Device& device, const VkExtent3D& extent, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties)
         : m_Device(device)
     {
         VkImageCreateInfo imageInfo{};
         imageInfo.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
         imageInfo.imageType     = VK_IMAGE_TYPE_2D;
-        imageInfo.extent.width  = extent.width;
-        imageInfo.extent.height = extent.height;
-        imageInfo.extent.depth  = 1;
+        imageInfo.extent        = extent;
         imageInfo.mipLevels     = 1;
         imageInfo.arrayLayers   = 1;
         imageInfo.format        = format;

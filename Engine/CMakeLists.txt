@@ -12,6 +12,7 @@ set(VENDORS ../vendor/glfw/include
 include_directories(${VENDORS}
                     ./
                     ./API/Vulkan/
+                    ./API/Vulkan/Image
                     ./Core
                     ./Events
                     ./Input
@@ -28,7 +29,8 @@ add_executable(Eternity     main.cpp
                             ./API/Vulkan/Device.cpp
                             ./API/Vulkan/Swapchain.cpp
                             ./API/Vulkan/RenderPass.cpp
-                            ./API/Vulkan/Image.cpp 
+                            ./API/Vulkan/Image/Image.cpp 
+                            ./API/Vulkan/Image/DepthImage.cpp
                             ./API/Vulkan/Utils.cpp)
                             
 target_link_libraries(Eternity vulkan glfw glm tinyobjloader stb_image)

@@ -13,7 +13,7 @@ namespace Eternity
             VkImage         m_Image;
             VkDeviceMemory  m_Memory;
         public:
-            Image(const Device& device, VkExtent2D extent, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties);
+            Image(const Device& device, const VkExtent3D& extent, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties);
             ~Image();
 
             VkDeviceMemory  GetImageMemory() { return m_Memory; };

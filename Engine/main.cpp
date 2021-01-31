@@ -39,6 +39,7 @@
 #include "Swapchain.hpp"
 #include "RenderPass.hpp"
 #include "Image.hpp"
+#include "DepthImage.hpp"
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -144,6 +145,8 @@ private:
         m_Device            = std::make_shared<Eternity::Device>(*m_Instance, *m_PhysicalDevice);
         m_Swapchain         = std::make_shared<Eternity::Swapchain>(ChooseSwapExtent(), *m_Device);
         
+        CreateRenderPass();
+        
         device = *m_Device;
     }
 
@@ -198,7 +201,6 @@ private:
 
     void initVulkan() 
     {
-        CreateRenderPass();
         createDepthResources();
         createFramebuffers();
         createCommandPool();
@@ -493,13 +495,9 @@ private:
     void createDepthResources() {
         VkFormat depthFormat = FindDepthFormat(m_Device->GetPhysicalDevice());
 
-        m_DepthImage = std::make_shared<Eternity::Image>(*m_Device, m_Swapchain->GetExtent(), depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        m_DepthImage = std::make_shared<Eternity::DepthImage>(*m_Device, m_Swapchain->GetExtent());
         depthImageView = createImageView(*m_DepthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
     }
-
-
-
-
 
     bool hasStencilComponent(VkFormat format) {
         return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
@@ -525,7 +523,7 @@ private:
 
         stbi_image_free(pixels);
 
-        VkExtent2D texExtent { static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight) };
+        VkExtent3D texExtent { static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight), 1 };
         m_TextureImage = std::make_shared<Eternity::Image>(*m_Device, texExtent, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
         transitionImageLayout(*m_TextureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
