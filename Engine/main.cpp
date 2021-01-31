@@ -155,7 +155,6 @@ private:
     std::vector<VkFramebuffer> swapChainFramebuffers;
 
     ///
-    VkRenderPass renderPass;
     std::shared_ptr<Eternity::RenderPass> m_RenderPass;
 
     VkDescriptorSetLayout descriptorSetLayout;
@@ -198,7 +197,7 @@ private:
 
     void initVulkan() 
     {
-        createRenderPass();
+        CreateRenderPass();
         createDescriptorSetLayout();
         createGraphicsPipeline();
         createCommandPool();
@@ -241,7 +240,6 @@ private:
 
         vkDestroyPipeline(device, graphicsPipeline, nullptr);
         vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
-        vkDestroyRenderPass(device, renderPass, nullptr);
 
         for (size_t i = 0; i < m_Swapchain->GetImages().size(); i++) 
         {
@@ -292,7 +290,7 @@ private:
 
         m_Swapchain->Recreate(ChooseSwapExtent());
         swapChain = *m_Swapchain;
-        createRenderPass();
+        CreateRenderPass();
         createGraphicsPipeline();
         createDepthResources();
         createFramebuffers();
@@ -302,46 +300,12 @@ private:
         createCommandBuffers();
     }
 
-    void createRenderPass() {
-
+    void CreateRenderPass() 
+    {
         Attachment colorAttachment(Attachment::Type::Color, 0, m_Swapchain->GetImageFormat());
         Attachment depthAttachment(Attachment::Type::Depth, 1, findDepthFormat());
 
-        VkAttachmentReference   colorRef{};
-        colorRef.attachment = colorAttachment.GetBinding();
-        colorRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        
-        VkAttachmentReference   depthRef{};
-        depthRef.attachment = depthAttachment.GetBinding();
-        depthRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-        VkSubpassDescription subpass{};
-        subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-        subpass.colorAttachmentCount = 1;
-        subpass.pColorAttachments = &colorRef;
-        subpass.pDepthStencilAttachment = &depthRef;
-
-        VkSubpassDependency dependency{};
-        dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-        dependency.dstSubpass = 0;
-        dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-        dependency.srcAccessMask = 0;
-        dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-        dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-        std::array<VkAttachmentDescription, 2> attachments = { colorAttachment, depthAttachment };
-        VkRenderPassCreateInfo renderPassInfo{};
-        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-        renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-        renderPassInfo.pAttachments = attachments.data();
-        renderPassInfo.subpassCount = 1;
-        renderPassInfo.pSubpasses = &subpass;
-        renderPassInfo.dependencyCount = 1;
-        renderPassInfo.pDependencies = &dependency;
-
-        if (vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create render pass!");
-        }
+        m_RenderPass = std::make_shared<Eternity::RenderPass>(*m_Device, std::vector{ colorAttachment }, depthAttachment);
     }
 
     void createDescriptorSetLayout() {
@@ -485,7 +449,7 @@ private:
         pipelineInfo.pDepthStencilState = &depthStencil;
         pipelineInfo.pColorBlendState = &colorBlending;
         pipelineInfo.layout = pipelineLayout;
-        pipelineInfo.renderPass = renderPass;
+        pipelineInfo.renderPass = *m_RenderPass;
         pipelineInfo.subpass = 0;
         pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
@@ -509,7 +473,7 @@ private:
 
             VkFramebufferCreateInfo framebufferInfo{};
             framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-            framebufferInfo.renderPass = renderPass;
+            framebufferInfo.renderPass = *m_RenderPass;
             framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
             framebufferInfo.pAttachments = attachments.data();
             framebufferInfo.width = m_Swapchain->GetExtent().width;
@@ -884,15 +848,15 @@ private:
         return std::make_pair(buffer, bufferMemory);
     }
 
-    void createUniformBuffers() {
+    void createUniformBuffers() 
+    {
         VkDeviceSize bufferSize = sizeof(UniformBufferObject);
 
         uniformBuffers.resize(m_Swapchain->GetImages().size());
         uniformBuffersMemory.resize(m_Swapchain->GetImages().size());
 
-        for (size_t i = 0; i < m_Swapchain->GetImages().size(); i++) {
+        for (size_t i = 0; i < m_Swapchain->GetImages().size(); i++) 
             createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i]);
-        }
     }
 
     void createDescriptorPool() {
@@ -1065,7 +1029,7 @@ private:
 
             VkRenderPassBeginInfo renderPassInfo{};
             renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-            renderPassInfo.renderPass = renderPass;
+            renderPassInfo.renderPass = *m_RenderPass;
             renderPassInfo.framebuffer = swapChainFramebuffers[i];
             renderPassInfo.renderArea.offset = {0, 0};
             renderPassInfo.renderArea.extent = m_Swapchain->GetExtent();

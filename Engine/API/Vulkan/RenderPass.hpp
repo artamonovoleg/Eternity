@@ -57,13 +57,10 @@ namespace Eternity
             const Device&   m_Device;
             VkRenderPass    m_RenderPass;
         public:
-            RenderPass(const Device& device)
-                : m_Device(device)
-            {
-            }
-
+            RenderPass(const Device& device, const std::vector<Attachment>& colorAttachments, Attachment& depthAttachment);
             ~RenderPass();
-
+            
             operator VkRenderPass() { return m_RenderPass; }
+            operator VkRenderPass() const { return m_RenderPass; }
     };
 } // namespace Eternity
