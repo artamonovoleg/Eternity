@@ -100,7 +100,8 @@ namespace Eternity
         m_Images.resize(imageCount);
         vkGetSwapchainImagesKHR(m_Device, m_Swapchain, &imageCount, m_Images.data());
 
-        m_ImageFormat  = surfaceFormat.format;
+        m_ImageCount    = imageCount; 
+        m_ImageFormat   = surfaceFormat.format;
 
         ET_TRACE("Swapchain created");
     }
@@ -146,8 +147,7 @@ namespace Eternity
         return VK_PRESENT_MODE_FIFO_KHR;
     }
 
-
-    const std::vector<VkImage>&         Swapchain::GetImages()             const { return m_Images; }
+    const uint32_t                      Swapchain::GetImageCount()         const { return m_ImageCount; }
     const VkFormat                      Swapchain::GetImageFormat()        const { return m_ImageFormat; }
     const VkExtent2D                    Swapchain::GetExtent()             const { return m_Extent; }
     const std::vector<VkImageView>&     Swapchain::GetImageViews()         const { return m_ImageViews; };

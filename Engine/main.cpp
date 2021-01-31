@@ -28,6 +28,7 @@
 #include <optional>
 #include <set>
 #include <unordered_map>
+#include "Utils.hpp"
 #include "Window.hpp"
 #include "EventSystem.hpp"
 #include "Input.hpp"
@@ -37,6 +38,7 @@
 #include "Device.hpp"
 #include "Swapchain.hpp"
 #include "RenderPass.hpp"
+#include "Image.hpp"
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -121,6 +123,13 @@ public:
         Eternity::EventSystem::AddListener(EventType::WindowResizeEvent, [&](const Event& event)
         {
             framebufferResized = true;
+            int width = 0, height = 0;
+            glfwGetFramebufferSize(Eternity::GetWindow(), &width, &height);
+            while (width == 0 || height == 0)
+            {
+                glfwGetFramebufferSize(Eternity::GetWindow(), &width, &height);
+                glfwWaitEvents();
+            }
         });
     }
 private:
@@ -135,24 +144,15 @@ private:
         m_Device            = std::make_shared<Eternity::Device>(*m_Instance, *m_PhysicalDevice);
         m_Swapchain         = std::make_shared<Eternity::Swapchain>(ChooseSwapExtent(), *m_Device);
         
-        instance = *m_Instance;
-        surface = *m_Surface;
-        physicalDevice = *m_PhysicalDevice;
         device = *m_Device;
-        swapChain = *m_Swapchain;
-
     }
 
-    VkInstance instance;
     std::shared_ptr<Eternity::Instance> m_Instance;
-    VkSurfaceKHR surface;
     std::shared_ptr<Eternity::Surface> m_Surface;
-    VkPhysicalDevice physicalDevice;
     std::shared_ptr<Eternity::PhysicalDevice> m_PhysicalDevice;
     VkDevice device;
     std::shared_ptr<Eternity::Device> m_Device;
 
-    VkSwapchainKHR swapChain;
     std::shared_ptr<Eternity::Swapchain> m_Swapchain;
     std::vector<VkFramebuffer> swapChainFramebuffers;
 
@@ -165,12 +165,10 @@ private:
 
     VkCommandPool commandPool;
 
-    VkImage depthImage;
-    VkDeviceMemory depthImageMemory;
+    std::shared_ptr<Eternity::Image> m_DepthImage;
     VkImageView depthImageView;
 
-    VkImage textureImage;
-    VkDeviceMemory textureImageMemory;
+    std::shared_ptr<Eternity::Image> m_TextureImage;
     VkImageView textureImageView;
     VkSampler textureSampler;
 
@@ -234,8 +232,6 @@ private:
     void cleanupSwapChain() 
     {
         vkDestroyImageView(device, depthImageView, nullptr);
-        vkDestroyImage(device, depthImage, nullptr);
-        vkFreeMemory(device, depthImageMemory, nullptr);
 
         for (auto framebuffer : swapChainFramebuffers) 
             vkDestroyFramebuffer(device, framebuffer, nullptr);
@@ -245,7 +241,7 @@ private:
         vkDestroyPipeline(device, graphicsPipeline, nullptr);
         vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 
-        for (size_t i = 0; i < m_Swapchain->GetImages().size(); i++) 
+        for (size_t i = 0; i < m_Swapchain->GetImageCount(); i++) 
         {
             vkDestroyBuffer(device, uniformBuffers[i], nullptr);
             vkFreeMemory(device, uniformBuffersMemory[i], nullptr);
@@ -259,9 +255,6 @@ private:
 
         vkDestroySampler(device, textureSampler, nullptr);
         vkDestroyImageView(device, textureImageView, nullptr);
-
-        vkDestroyImage(device, textureImage, nullptr);
-        vkFreeMemory(device, textureImageMemory, nullptr);
 
         vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
 
@@ -283,17 +276,11 @@ private:
 
     void recreateSwapChain() 
     {
-        int width = 0, height = 0;
-        glfwGetFramebufferSize(Eternity::GetWindow(), &width, &height);
-        while (width == 0 || height == 0) 
-            glfwWaitEvents();
-
         m_Device->WaitIdle();
 
         cleanupSwapChain();
 
         m_Swapchain->Recreate(ChooseSwapExtent());
-        swapChain = *m_Swapchain;
 
         CreateRenderPass();
         createDepthResources();
@@ -309,7 +296,7 @@ private:
     void CreateRenderPass() 
     {
         Attachment colorAttachment(Attachment::Type::Color, 0, m_Swapchain->GetImageFormat());
-        Attachment depthAttachment(Attachment::Type::Depth, 1, findDepthFormat());
+        Attachment depthAttachment(Attachment::Type::Depth, 1, FindDepthFormat(m_Device->GetPhysicalDevice()));
 
         m_RenderPass = std::make_shared<Eternity::RenderPass>(*m_Device, std::vector{ colorAttachment }, depthAttachment);
     }
@@ -468,9 +455,9 @@ private:
     }
 
     void createFramebuffers() {
-        swapChainFramebuffers.resize(m_Swapchain->GetImageViews().size());
+        swapChainFramebuffers.resize(m_Swapchain->GetImageCount());
 
-        for (size_t i = 0; i < m_Swapchain->GetImageViews().size(); i++) 
+        for (size_t i = 0; i < m_Swapchain->GetImageCount(); i++) 
         {
             std::array<VkImageView, 2> attachments = {
                 m_Swapchain->GetImageViews()[i],
@@ -504,34 +491,15 @@ private:
     }
 
     void createDepthResources() {
-        VkFormat depthFormat = findDepthFormat();
+        VkFormat depthFormat = FindDepthFormat(m_Device->GetPhysicalDevice());
 
-        createImage(m_Swapchain->GetExtent().width, m_Swapchain->GetExtent().height, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImage, depthImageMemory);
-        depthImageView = createImageView(depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
+        m_DepthImage = std::make_shared<Eternity::Image>(*m_Device, m_Swapchain->GetExtent(), depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        depthImageView = createImageView(*m_DepthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
     }
 
-    VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
-        for (VkFormat format : candidates) {
-            VkFormatProperties props;
-            vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &props);
 
-            if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features) {
-                return format;
-            } else if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features) {
-                return format;
-            }
-        }
 
-        throw std::runtime_error("failed to find supported format!");
-    }
 
-    VkFormat findDepthFormat() {
-        return findSupportedFormat(
-            {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
-            VK_IMAGE_TILING_OPTIMAL,
-            VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
-        );
-    }
 
     bool hasStencilComponent(VkFormat format) {
         return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
@@ -557,23 +525,24 @@ private:
 
         stbi_image_free(pixels);
 
-        createImage(texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage, textureImageMemory);
+        VkExtent2D texExtent { static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight) };
+        m_TextureImage = std::make_shared<Eternity::Image>(*m_Device, texExtent, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-        transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-            copyBufferToImage(stagingBuffer, textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
-        transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        transitionImageLayout(*m_TextureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+            copyBufferToImage(stagingBuffer, *m_TextureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+        transitionImageLayout(*m_TextureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
         vkDestroyBuffer(device, stagingBuffer, nullptr);
         vkFreeMemory(device, stagingBufferMemory, nullptr);
     }
 
     void createTextureImageView() {
-        textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
+        textureImageView = createImageView(*m_TextureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
     }
 
     void createTextureSampler() {
         VkPhysicalDeviceProperties properties{};
-        vkGetPhysicalDeviceProperties(physicalDevice, &properties);
+        vkGetPhysicalDeviceProperties(m_Device->GetPhysicalDevice(), &properties);
 
         VkSamplerCreateInfo samplerInfo{};
         samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -615,40 +584,6 @@ private:
         return imageView;
     }
 
-    void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory) {
-        VkImageCreateInfo imageInfo{};
-        imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-        imageInfo.imageType = VK_IMAGE_TYPE_2D;
-        imageInfo.extent.width = width;
-        imageInfo.extent.height = height;
-        imageInfo.extent.depth = 1;
-        imageInfo.mipLevels = 1;
-        imageInfo.arrayLayers = 1;
-        imageInfo.format = format;
-        imageInfo.tiling = tiling;
-        imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        imageInfo.usage = usage;
-        imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-        imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-        if (vkCreateImage(device, &imageInfo, nullptr, &image) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create image!");
-        }
-
-        VkMemoryRequirements memRequirements;
-        vkGetImageMemoryRequirements(device, image, &memRequirements);
-
-        VkMemoryAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        allocInfo.allocationSize = memRequirements.size;
-        allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
-
-        if (vkAllocateMemory(device, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS) {
-            throw std::runtime_error("failed to allocate image memory!");
-        }
-
-        vkBindImageMemory(device, image, imageMemory, 0);
-    }
 
     void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) {
         VkCommandBuffer commandBuffer = beginSingleTimeCommands();
@@ -781,32 +716,6 @@ private:
         vkFreeMemory(device, stagingBufferMemory, nullptr);
     }
 
-    std::pair<VkBuffer, VkDeviceMemory> CreateVertexBuffer(const void* verticesData, uint32_t size)
-    {
-        VkBuffer        buffer;
-        VkDeviceMemory  bufferMemory;
-
-        VkDeviceSize bufferSize = size;
-
-        VkBuffer stagingBuffer;
-        VkDeviceMemory stagingBufferMemory;
-        createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
-
-        void* data;
-        vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-            std::memcpy(data, verticesData, (size_t) bufferSize);
-        vkUnmapMemory(device, stagingBufferMemory);
-
-        createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, buffer, bufferMemory);
-
-        copyBuffer(stagingBuffer, buffer, bufferSize);
-
-        vkDestroyBuffer(device, stagingBuffer, nullptr);
-        vkFreeMemory(device, stagingBufferMemory, nullptr);
-
-        return std::make_pair(buffer, bufferMemory);
-    }
-
     void createIndexBuffer(const void* indicesData, uint32_t size) 
     {
         VkDeviceSize bufferSize = size;
@@ -828,55 +737,29 @@ private:
         vkFreeMemory(device, stagingBufferMemory, nullptr);
     }
 
-    std::pair<VkBuffer, VkDeviceMemory> CreateIndexBuffer(const void* verticesData, uint32_t size)
-    {
-        VkBuffer        buffer;
-        VkDeviceMemory  bufferMemory;
-
-        VkDeviceSize bufferSize = size;
-
-        VkBuffer stagingBuffer;
-        VkDeviceMemory stagingBufferMemory;
-        createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
-
-        void* data;
-        vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-            std::memcpy(data, verticesData, (size_t) bufferSize);
-        vkUnmapMemory(device, stagingBufferMemory);
-
-        createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, buffer, bufferMemory);
-
-        copyBuffer(stagingBuffer, buffer, bufferSize);
-
-        vkDestroyBuffer(device, stagingBuffer, nullptr);
-        vkFreeMemory(device, stagingBufferMemory, nullptr);
-
-        return std::make_pair(buffer, bufferMemory);
-    }
-
     void createUniformBuffers() 
     {
         VkDeviceSize bufferSize = sizeof(UniformBufferObject);
 
-        uniformBuffers.resize(m_Swapchain->GetImages().size());
-        uniformBuffersMemory.resize(m_Swapchain->GetImages().size());
+        uniformBuffers.resize(m_Swapchain->GetImageCount());
+        uniformBuffersMemory.resize(m_Swapchain->GetImageCount());
 
-        for (size_t i = 0; i < m_Swapchain->GetImages().size(); i++) 
+        for (size_t i = 0; i < m_Swapchain->GetImageCount(); i++) 
             createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i]);
     }
 
     void createDescriptorPool() {
         std::array<VkDescriptorPoolSize, 2> poolSizes{};
         poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        poolSizes[0].descriptorCount = static_cast<uint32_t>(m_Swapchain->GetImages().size());
+        poolSizes[0].descriptorCount = static_cast<uint32_t>(m_Swapchain->GetImageCount());
         poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        poolSizes[1].descriptorCount = static_cast<uint32_t>(m_Swapchain->GetImages().size());
+        poolSizes[1].descriptorCount = static_cast<uint32_t>(m_Swapchain->GetImageCount());
 
         VkDescriptorPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
         poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
         poolInfo.pPoolSizes = poolSizes.data();
-        poolInfo.maxSets = static_cast<uint32_t>(m_Swapchain->GetImages().size());
+        poolInfo.maxSets = static_cast<uint32_t>(m_Swapchain->GetImageCount());
 
         if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
             throw std::runtime_error("failed to create descriptor pool!");
@@ -884,19 +767,19 @@ private:
     }
 
     void createDescriptorSets() {
-        std::vector<VkDescriptorSetLayout> layouts(m_Swapchain->GetImages().size(), descriptorSetLayout);
+        std::vector<VkDescriptorSetLayout> layouts(m_Swapchain->GetImageCount(), descriptorSetLayout);
         VkDescriptorSetAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
         allocInfo.descriptorPool = descriptorPool;
-        allocInfo.descriptorSetCount = static_cast<uint32_t>(m_Swapchain->GetImages().size());
+        allocInfo.descriptorSetCount = static_cast<uint32_t>(m_Swapchain->GetImageCount());
         allocInfo.pSetLayouts = layouts.data();
 
-        descriptorSets.resize(m_Swapchain->GetImages().size());
+        descriptorSets.resize(m_Swapchain->GetImageCount());
         if (vkAllocateDescriptorSets(device, &allocInfo, descriptorSets.data()) != VK_SUCCESS) {
             throw std::runtime_error("failed to allocate descriptor sets!");
         }
 
-        for (size_t i = 0; i < m_Swapchain->GetImages().size(); i++) 
+        for (size_t i = 0; i < m_Swapchain->GetImageCount(); i++) 
         {
             VkDescriptorBufferInfo bufferInfo{};
             bufferInfo.buffer = uniformBuffers[i];
@@ -947,7 +830,7 @@ private:
         VkMemoryAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
         allocInfo.allocationSize = memRequirements.size;
-        allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
+        allocInfo.memoryTypeIndex = FindMemoryType(m_Device->GetPhysicalDevice(), memRequirements.memoryTypeBits, properties);
 
         if (vkAllocateMemory(device, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS) {
             throw std::runtime_error("failed to allocate buffer memory!");
@@ -997,19 +880,6 @@ private:
         vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
 
         endSingleTimeCommands(commandBuffer);
-    }
-
-    uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
-        VkPhysicalDeviceMemoryProperties memProperties;
-        vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
-
-        for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-            if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-                return i;
-            }
-        }
-
-        throw std::runtime_error("failed to find suitable memory type!");
     }
 
     void createCommandBuffers() {
@@ -1074,7 +944,7 @@ private:
         imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
         renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
         inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
-        imagesInFlight.resize(m_Swapchain->GetImages().size(), VK_NULL_HANDLE);
+        imagesInFlight.resize(m_Swapchain->GetImageCount(), VK_NULL_HANDLE);
 
         VkSemaphoreCreateInfo semaphoreInfo{};
         semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;

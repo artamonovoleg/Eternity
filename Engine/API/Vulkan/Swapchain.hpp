@@ -14,6 +14,7 @@ namespace Eternity
 
             VkSwapchainKHR              m_Swapchain;
             std::vector<VkImage>        m_Images;
+            uint32_t                    m_ImageCount;
             VkFormat                    m_ImageFormat;
             VkExtent2D                  m_Extent;
             std::vector<VkImageView>    m_ImageViews;
@@ -36,10 +37,10 @@ namespace Eternity
             VkResult AcquireNextImage(const VkSemaphore &presentCompleteSemaphore, VkFence fence);
             VkResult QueuePresent(const VkQueue &presentQueue, const VkSemaphore &waitSemaphore);
 
-            const std::vector<VkImage>&         GetImages()             const;           
+            const uint32_t                      GetImageCount()         const;    
             const VkFormat                      GetImageFormat()        const;     
             const VkExtent2D                    GetExtent()             const;       
-            const std::vector<VkImageView>&     GetImageViews()         const;   
+            const std::vector<VkImageView>&     GetImageViews()         const;
             const std::vector<VkFramebuffer>&   GetFramebuffers()       const;    
             const uint32_t&                     GetActiveImageIndex()   const;  
 
