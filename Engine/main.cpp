@@ -40,6 +40,8 @@
 #include "RenderPass.hpp"
 #include "Image.hpp"
 #include "DepthImage.hpp"
+#include "Framebuffers.hpp"
+#include "CommandPool.hpp"
 #include "Buffer.hpp"
 
 const uint32_t WIDTH = 800;
@@ -106,8 +108,6 @@ struct UniformBufferObject
 
 using namespace Eternity;
 
-
-
 class VulkanApp 
 {
 public:
@@ -135,20 +135,8 @@ public:
         });
     }
 
-    ~VulkanApp()
-    {
-
-    }
-    static VulkanApp* Create() 
-    {
-        s_Instance = new VulkanApp();
-        return s_Instance;
-    }
-
-    static VulkanApp* Get() { return s_Instance; }
 private:
 
-    static VulkanApp* s_Instance;
     /// Rewrited code
     VkExtent2D ChooseSwapExtent();
 
@@ -160,8 +148,11 @@ private:
         m_Device            = std::make_shared<Eternity::Device>(*m_Instance, *m_PhysicalDevice);
         m_Swapchain         = std::make_shared<Eternity::Swapchain>(ChooseSwapExtent(), *m_Device);
         
-        CreateDepthResources();
+        m_DepthImage        = std::make_shared<Eternity::DepthImage>(*m_Device, m_Swapchain->GetExtent());
         CreateRenderPass();
+
+        m_Framebuffers      = std::make_shared<Eternity::Framebuffers>(*m_Swapchain, *m_RenderPass, *m_DepthImage);
+        m_CommandPool       = std::make_shared<Eternity::CommandPool>(*m_Device);
     }
 
     std::shared_ptr<Eternity::Instance>         m_Instance;
@@ -170,16 +161,16 @@ private:
     std::shared_ptr<Eternity::Device>           m_Device;
     std::shared_ptr<Eternity::Swapchain>        m_Swapchain;
 
-    std::shared_ptr<Eternity::Image>            m_DepthImage;
+    std::shared_ptr<Eternity::DepthImage>       m_DepthImage;
 
     std::shared_ptr<Eternity::RenderPass>       m_RenderPass;
 
-    std::vector<VkFramebuffer> swapChainFramebuffers;
+    std::shared_ptr<Eternity::Framebuffers>     m_Framebuffers;
     ///
 
-    VkCommandPool commandPool;
+    std::shared_ptr<Eternity::CommandPool>      m_CommandPool;
 
-    std::shared_ptr<Eternity::Image> m_TextureImage;
+    std::shared_ptr<Eternity::Image>            m_TextureImage;
     VkSampler textureSampler;
 
     VkDescriptorSetLayout descriptorSetLayout;
@@ -210,9 +201,6 @@ private:
 
     void initVulkan() 
     {
-        createFramebuffers();
-        createCommandPool();
-
         createDescriptorSetLayout();
         createGraphicsPipeline();
         createTextureImage();
@@ -240,10 +228,7 @@ private:
 
     void cleanupSwapChain() 
     {
-        for (auto framebuffer : swapChainFramebuffers) 
-            vkDestroyFramebuffer(*m_Device, framebuffer, nullptr);
-
-        vkFreeCommandBuffers(*m_Device, commandPool, static_cast<uint32_t>(commandBuffers.size()), commandBuffers.data());
+        vkFreeCommandBuffers(*m_Device, *m_CommandPool, static_cast<uint32_t>(commandBuffers.size()), commandBuffers.data());
 
         vkDestroyPipeline(*m_Device, graphicsPipeline, nullptr);
         vkDestroyPipelineLayout(*m_Device, pipelineLayout, nullptr);
@@ -270,8 +255,6 @@ private:
             vkDestroySemaphore(*m_Device, imageAvailableSemaphores[i], nullptr);
             vkDestroyFence(*m_Device, inFlightFences[i], nullptr);
         }
-
-        vkDestroyCommandPool(*m_Device, commandPool, nullptr);
     }
 
     void recreateSwapChain() 
@@ -282,9 +265,9 @@ private:
 
         m_Swapchain->Recreate(ChooseSwapExtent());
 
-        CreateDepthResources();
+        m_DepthImage = std::make_shared<Eternity::DepthImage>(*m_Device, m_Swapchain->GetExtent());
         CreateRenderPass();
-        createFramebuffers();
+        m_Framebuffers = std::make_shared<Eternity::Framebuffers>(*m_Swapchain, *m_RenderPass, *m_DepthImage);
 
         createGraphicsPipeline();
         createUniformBuffers();
@@ -450,47 +433,6 @@ private:
 
         vkDestroyShaderModule(*m_Device, fragShaderModule, nullptr);
         vkDestroyShaderModule(*m_Device, vertShaderModule, nullptr);
-    }
-
-    void createFramebuffers() 
-    {
-        swapChainFramebuffers.resize(m_Swapchain->GetImageCount());
-
-        for (size_t i = 0; i < m_Swapchain->GetImageCount(); i++) 
-        {
-            std::array<VkImageView, 2> attachments = {
-                m_Swapchain->GetImageViews()[i],
-                m_DepthImage->GetImageView()
-            };
-
-            VkFramebufferCreateInfo framebufferInfo{};
-            framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-            framebufferInfo.renderPass = *m_RenderPass;
-            framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-            framebufferInfo.pAttachments = attachments.data();
-            framebufferInfo.width = m_Swapchain->GetExtent().width;
-            framebufferInfo.height = m_Swapchain->GetExtent().height;
-            framebufferInfo.layers = 1;
-
-            if (vkCreateFramebuffer(*m_Device, &framebufferInfo, nullptr, &swapChainFramebuffers[i]) != VK_SUCCESS) {
-                throw std::runtime_error("failed to create framebuffer!");
-            }
-        }
-    }
-
-    void createCommandPool() {
-
-        VkCommandPoolCreateInfo poolInfo{};
-        poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-        poolInfo.queueFamilyIndex = m_PhysicalDevice->GetQueueFamilyIndex(QueueType::Graphics);
-
-        if (vkCreateCommandPool(*m_Device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS)
-            throw std::runtime_error("failed to create graphics command pool!");
-    }
-
-    void CreateDepthResources() 
-    {
-        m_DepthImage = std::make_shared<Eternity::DepthImage>(*m_Device, m_Swapchain->GetExtent());
     }
 
     bool hasStencilComponent(VkFormat format) {
@@ -794,7 +736,7 @@ private:
         VkCommandBufferAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
         allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        allocInfo.commandPool = commandPool;
+        allocInfo.commandPool = *m_CommandPool;
         allocInfo.commandBufferCount = 1;
 
         VkCommandBuffer commandBuffer;
@@ -820,7 +762,7 @@ private:
         vkQueueSubmit(m_Device->GetQueue(QueueType::Graphics), 1, &submitInfo, VK_NULL_HANDLE);
         vkQueueWaitIdle(m_Device->GetQueue(QueueType::Graphics));
 
-        vkFreeCommandBuffers(*m_Device, commandPool, 1, &commandBuffer);
+        vkFreeCommandBuffers(*m_Device, *m_CommandPool, 1, &commandBuffer);
     }
 
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
@@ -834,11 +776,11 @@ private:
     }
 
     void createCommandBuffers() {
-        commandBuffers.resize(swapChainFramebuffers.size());
+        commandBuffers.resize(m_Framebuffers->GetBuffersCount());
 
         VkCommandBufferAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        allocInfo.commandPool = commandPool;
+        allocInfo.commandPool = *m_CommandPool;
         allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
         allocInfo.commandBufferCount = (uint32_t) commandBuffers.size();
 
@@ -857,7 +799,7 @@ private:
             VkRenderPassBeginInfo renderPassInfo{};
             renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
             renderPassInfo.renderPass = *m_RenderPass;
-            renderPassInfo.framebuffer = swapChainFramebuffers[i];
+            renderPassInfo.framebuffer = m_Framebuffers->GetBuffers().at(i);
             renderPassInfo.renderArea.offset = {0, 0};
             renderPassInfo.renderArea.extent = m_Swapchain->GetExtent();
 
@@ -1049,7 +991,6 @@ VkExtent2D VulkanApp::ChooseSwapExtent()
     }
 }
 
-VulkanApp* VulkanApp::s_Instance;
 
 int main() 
 {
@@ -1057,12 +998,8 @@ int main()
     Eternity::EventSystem::Init();
     Eternity::Input::Init();
 
-    VulkanApp* app = VulkanApp::Create();
-    // VulkanApp app;
-    // app.run();
-    app->Get()->run();
-
-    delete app;
+    VulkanApp app;
+    app.run();
 
     Eternity::DestroyWindow();
 

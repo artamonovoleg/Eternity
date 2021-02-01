@@ -153,4 +153,5 @@ namespace Eternity
     const std::vector<VkImageView>&     Swapchain::GetImageViews()         const { return m_ImageViews; };
     const std::vector<VkFramebuffer>&   Swapchain::GetFramebuffers()       const { return m_Framebuffers; }
     const uint32_t&                     Swapchain::GetActiveImageIndex()   const { return m_ActiveImageIndex; }
+    const Device&                       Swapchain::GetDevice()             const { return m_Device; }
 } // namespace Eternity

@@ -16,7 +16,7 @@ namespace Eternity
     Image::~Image()
     {
         vkDestroyImageView(m_Device, m_ImageView, nullptr);
-        ET_TRACE("Image view destroyed");
+        ET_TRACE("ImageView destroyed");
         vkFreeMemory(m_Device, m_Memory, nullptr);
         ET_TRACE("Free image memory");
         vkDestroyImage(m_Device, m_Image, nullptr);

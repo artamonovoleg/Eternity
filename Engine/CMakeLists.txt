@@ -32,6 +32,8 @@ add_executable(Eternity     main.cpp
                             ./API/Vulkan/RenderPass.cpp
                             ./API/Vulkan/Image/Image.cpp 
                             ./API/Vulkan/Image/DepthImage.cpp
+                            ./API/Vulkan/Framebuffers.cpp
+                            ./API/Vulkan/CommandPool.cpp
                             ./API/Vulkan/Buffer/Buffer.cpp
                             ./API/Vulkan/Utils.cpp)
                             

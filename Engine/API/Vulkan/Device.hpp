@@ -21,7 +21,7 @@ namespace Eternity
 
             void                    WaitIdle();
             VkImageView             CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags) const;
-            
+
             const PhysicalDevice&   GetPhysicalDevice() const { return m_PhysicalDevice; }
             VkQueue                 GetQueue(QueueType type);
 

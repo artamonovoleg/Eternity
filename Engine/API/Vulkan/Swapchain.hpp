@@ -43,7 +43,8 @@ namespace Eternity
             const std::vector<VkImageView>&     GetImageViews()         const;
             const std::vector<VkFramebuffer>&   GetFramebuffers()       const;    
             const uint32_t&                     GetActiveImageIndex()   const;  
-
+            const Device&                       GetDevice()             const;
+            
             operator VkSwapchainKHR() { return m_Swapchain; }
     };    
 } // namespace Eternity
