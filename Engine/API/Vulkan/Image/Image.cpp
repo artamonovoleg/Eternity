@@ -6,8 +6,24 @@
 
 namespace Eternity
 {
-    Image::Image(const Device& device, const VkExtent3D& extent, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties)
+    Image::Image(const Device& device, const VkExtent3D& extent, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImageAspectFlags aspectFlags)
         : m_Device(device)
+    {
+        CreateImage(extent, format, tiling, usage, properties);
+        CreateImageView(m_Image, format, aspectFlags);
+    }
+
+    Image::~Image()
+    {
+        vkDestroyImageView(m_Device, m_ImageView, nullptr);
+        ET_TRACE("Image view destroyed");
+        vkFreeMemory(m_Device, m_Memory, nullptr);
+        ET_TRACE("Free image memory");
+        vkDestroyImage(m_Device, m_Image, nullptr);
+        ET_TRACE("Image destroyed");
+    }
+
+    void Image::CreateImage(const VkExtent3D& extent, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties)
     {
         VkImageCreateInfo imageInfo{};
         imageInfo.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -39,11 +55,21 @@ namespace Eternity
         vkBindImageMemory(m_Device, m_Image, m_Memory, 0);
     }
 
-    Image::~Image()
+    void Image::CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags)
     {
-        vkFreeMemory(m_Device, m_Memory, nullptr);
-        ET_TRACE("Free image memory");
-        vkDestroyImage(m_Device, m_Image, nullptr);
+        VkImageViewCreateInfo viewInfo{};
+        viewInfo.sType                              = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        viewInfo.image                              = image;
+        viewInfo.viewType                           = VK_IMAGE_VIEW_TYPE_2D;
+        viewInfo.format                             = format;
+        viewInfo.subresourceRange.aspectMask        = aspectFlags;
+        viewInfo.subresourceRange.baseMipLevel      = 0;
+        viewInfo.subresourceRange.levelCount        = 1;
+        viewInfo.subresourceRange.baseArrayLayer    = 0;
+        viewInfo.subresourceRange.layerCount        = 1;
+
+        VkCheck(vkCreateImageView(m_Device, &viewInfo, nullptr, &m_ImageView));
+        ET_TRACE("ImageView created");
     }
 
 } // namespace Eternity

@@ -169,10 +169,8 @@ private:
     VkCommandPool commandPool;
 
     std::shared_ptr<Eternity::Image> m_DepthImage;
-    VkImageView depthImageView;
 
     std::shared_ptr<Eternity::Image> m_TextureImage;
-    VkImageView textureImageView;
     VkSampler textureSampler;
 
     std::vector<Vertex> vertices;
@@ -208,7 +206,6 @@ private:
         createDescriptorSetLayout();
         createGraphicsPipeline();
         createTextureImage();
-        createTextureImageView();
         createTextureSampler();
         loadModel();
         createVertexBuffer(vertices.data(), sizeof(vertices[0]) * vertices.size());
@@ -233,8 +230,6 @@ private:
 
     void cleanupSwapChain() 
     {
-        vkDestroyImageView(device, depthImageView, nullptr);
-
         for (auto framebuffer : swapChainFramebuffers) 
             vkDestroyFramebuffer(device, framebuffer, nullptr);
 
@@ -256,7 +251,6 @@ private:
         cleanupSwapChain();
 
         vkDestroySampler(device, textureSampler, nullptr);
-        vkDestroyImageView(device, textureImageView, nullptr);
 
         vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
 
@@ -463,7 +457,7 @@ private:
         {
             std::array<VkImageView, 2> attachments = {
                 m_Swapchain->GetImageViews()[i],
-                depthImageView
+                m_DepthImage->GetImageView()
             };
 
             VkFramebufferCreateInfo framebufferInfo{};
@@ -492,11 +486,9 @@ private:
         }
     }
 
-    void createDepthResources() {
-        VkFormat depthFormat = FindDepthFormat(m_Device->GetPhysicalDevice());
-
+    void createDepthResources() 
+    {
         m_DepthImage = std::make_shared<Eternity::DepthImage>(*m_Device, m_Swapchain->GetExtent());
-        depthImageView = createImageView(*m_DepthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
     }
 
     bool hasStencilComponent(VkFormat format) {
@@ -524,7 +516,7 @@ private:
         stbi_image_free(pixels);
 
         VkExtent3D texExtent { static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight), 1 };
-        m_TextureImage = std::make_shared<Eternity::Image>(*m_Device, texExtent, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        m_TextureImage = std::make_shared<Eternity::Image>(*m_Device, texExtent, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 
         transitionImageLayout(*m_TextureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
             copyBufferToImage(stagingBuffer, *m_TextureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
@@ -532,10 +524,6 @@ private:
 
         vkDestroyBuffer(device, stagingBuffer, nullptr);
         vkFreeMemory(device, stagingBufferMemory, nullptr);
-    }
-
-    void createTextureImageView() {
-        textureImageView = createImageView(*m_TextureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
     }
 
     void createTextureSampler() {
@@ -561,27 +549,6 @@ private:
             throw std::runtime_error("failed to create texture sampler!");
         }
     }
-
-    VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags) {
-        VkImageViewCreateInfo viewInfo{};
-        viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        viewInfo.image = image;
-        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        viewInfo.format = format;
-        viewInfo.subresourceRange.aspectMask = aspectFlags;
-        viewInfo.subresourceRange.baseMipLevel = 0;
-        viewInfo.subresourceRange.levelCount = 1;
-        viewInfo.subresourceRange.baseArrayLayer = 0;
-        viewInfo.subresourceRange.layerCount = 1;
-
-        VkImageView imageView;
-        if (vkCreateImageView(device, &viewInfo, nullptr, &imageView) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create texture image view!");
-        }
-
-        return imageView;
-    }
-
 
     void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) {
         VkCommandBuffer commandBuffer = beginSingleTimeCommands();
@@ -785,9 +752,9 @@ private:
             bufferInfo.range = sizeof(UniformBufferObject);
 
             VkDescriptorImageInfo imageInfo{};
-            imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            imageInfo.imageView = textureImageView;
-            imageInfo.sampler = textureSampler;
+            imageInfo.imageLayout   = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            imageInfo.imageView     = m_TextureImage->GetImageView();
+            imageInfo.sampler       = textureSampler;
 
             std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
 
