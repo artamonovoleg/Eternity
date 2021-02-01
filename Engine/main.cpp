@@ -40,6 +40,7 @@
 #include "RenderPass.hpp"
 #include "Image.hpp"
 #include "DepthImage.hpp"
+#include "Buffer.hpp"
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -133,7 +134,21 @@ public:
             }
         });
     }
+
+    ~VulkanApp()
+    {
+
+    }
+    static VulkanApp* Create() 
+    {
+        s_Instance = new VulkanApp();
+        return s_Instance;
+    }
+
+    static VulkanApp* Get() { return s_Instance; }
 private:
+
+    static VulkanApp* s_Instance;
     /// Rewrited code
     VkExtent2D ChooseSwapExtent();
 
@@ -152,16 +167,17 @@ private:
     std::shared_ptr<Eternity::Surface> m_Surface;
     std::shared_ptr<Eternity::PhysicalDevice> m_PhysicalDevice;
     std::shared_ptr<Eternity::Device> m_Device;
-
     std::shared_ptr<Eternity::Swapchain> m_Swapchain;
-    std::vector<VkFramebuffer> swapChainFramebuffers;
 
-    ///
     std::shared_ptr<Eternity::RenderPass> m_RenderPass;
+
+    std::shared_ptr<Eternity::Image> m_DepthImage;
+
+    std::vector<VkFramebuffer> swapChainFramebuffers;
+    ///
 
     VkCommandPool commandPool;
 
-    std::shared_ptr<Eternity::Image> m_DepthImage;
     std::shared_ptr<Eternity::Image> m_TextureImage;
     VkSampler textureSampler;
 
@@ -172,10 +188,8 @@ private:
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
 
-    VkBuffer vertexBuffer;
-    VkDeviceMemory vertexBufferMemory;
-    VkBuffer indexBuffer;
-    VkDeviceMemory indexBufferMemory;
+    std::shared_ptr<Eternity::Buffer> m_VertexBuffer;
+    std::shared_ptr<Eternity::Buffer> m_IndexBuffer;
 
     std::vector<VkBuffer> uniformBuffers;
     std::vector<VkDeviceMemory> uniformBuffersMemory;
@@ -249,12 +263,6 @@ private:
         vkDestroySampler(*m_Device, textureSampler, nullptr);
 
         vkDestroyDescriptorSetLayout(*m_Device, descriptorSetLayout, nullptr);
-
-        vkDestroyBuffer(*m_Device, indexBuffer, nullptr);
-        vkFreeMemory(*m_Device, indexBufferMemory, nullptr);
-
-        vkDestroyBuffer(*m_Device, vertexBuffer, nullptr);
-        vkFreeMemory(*m_Device, vertexBufferMemory, nullptr);
 
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
@@ -494,18 +502,15 @@ private:
         stbi_uc* pixels = stbi_load(TEXTURE_PATH.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
         VkDeviceSize imageSize = texWidth * texHeight * 4;
 
-        if (!pixels) {
+        if (!pixels) 
             throw std::runtime_error("failed to load texture image!");
-        }
 
-        VkBuffer stagingBuffer;
-        VkDeviceMemory stagingBufferMemory;
-        createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+        Buffer stageBuff(*m_Device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
         void* data;
-        vkMapMemory(*m_Device, stagingBufferMemory, 0, imageSize, 0, &data);
-            memcpy(data, pixels, static_cast<size_t>(imageSize));
-        vkUnmapMemory(*m_Device, stagingBufferMemory);
+        stageBuff.MapMemory(&data);
+            std::memcpy(data, pixels, static_cast<size_t>(imageSize));
+        stageBuff.UnmapMemory();
 
         stbi_image_free(pixels);
 
@@ -513,11 +518,8 @@ private:
         m_TextureImage = std::make_shared<Eternity::Image>(*m_Device, texExtent, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 
         transitionImageLayout(*m_TextureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-            copyBufferToImage(stagingBuffer, *m_TextureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+            copyBufferToImage(stageBuff, *m_TextureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
         transitionImageLayout(*m_TextureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-        vkDestroyBuffer(*m_Device, stagingBuffer, nullptr);
-        vkFreeMemory(*m_Device, stagingBufferMemory, nullptr);
     }
 
     void createTextureSampler() {
@@ -658,42 +660,31 @@ private:
     {
         VkDeviceSize bufferSize = size;
 
-        VkBuffer stagingBuffer;
-        VkDeviceMemory stagingBufferMemory;
-        createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
-
+        Buffer stagingBuffer (*m_Device, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
         void* data;
-        vkMapMemory(*m_Device, stagingBufferMemory, 0, bufferSize, 0, &data);
+        stagingBuffer.MapMemory(&data);
             std::memcpy(data, verticesData, (size_t) bufferSize);
-        vkUnmapMemory(*m_Device, stagingBufferMemory);
+        stagingBuffer.UnmapMemory();
 
-        createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory);
+        m_VertexBuffer = std::make_shared<Eternity::Buffer>(*m_Device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-        copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
-
-        vkDestroyBuffer(*m_Device, stagingBuffer, nullptr);
-        vkFreeMemory(*m_Device, stagingBufferMemory, nullptr);
+        copyBuffer(stagingBuffer, *m_VertexBuffer, bufferSize);
     }
 
     void createIndexBuffer(const void* indicesData, uint32_t size) 
     {
         VkDeviceSize bufferSize = size;
 
-        VkBuffer stagingBuffer;
-        VkDeviceMemory stagingBufferMemory;
-        createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+        Buffer stagingBuffer (*m_Device, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
         void* data;
-        vkMapMemory(*m_Device, stagingBufferMemory, 0, bufferSize, 0, &data);
+        stagingBuffer.MapMemory(&data);
             std::memcpy(data, indicesData, (size_t) bufferSize);
-        vkUnmapMemory(*m_Device, stagingBufferMemory);
+        stagingBuffer.UnmapMemory();
 
-        createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory);
-
-        copyBuffer(stagingBuffer, indexBuffer, bufferSize);
-
-        vkDestroyBuffer(*m_Device, stagingBuffer, nullptr);
-        vkFreeMemory(*m_Device, stagingBufferMemory, nullptr);
+        m_IndexBuffer = std::make_shared<Eternity::Buffer>(*m_Device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        
+        copyBuffer(stagingBuffer, *m_IndexBuffer, bufferSize);
     }
 
     void createUniformBuffers() 
@@ -798,7 +789,8 @@ private:
         vkBindBufferMemory(*m_Device, buffer, bufferMemory, 0);
     }
 
-    VkCommandBuffer beginSingleTimeCommands() {
+    VkCommandBuffer beginSingleTimeCommands() 
+    {
         VkCommandBufferAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
         allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -880,12 +872,12 @@ private:
 
                 vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
-                VkBuffer vertexBuffers[] = { vertexBuffer };
+                VkBuffer vertexBuffers[] = { *m_VertexBuffer };
                 VkDeviceSize offsets[] = {0};
 
                 vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
 
-                vkCmdBindIndexBuffer(commandBuffers[i], indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+                vkCmdBindIndexBuffer(commandBuffers[i], *m_IndexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
                 vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[i], 0, nullptr);
 
@@ -1057,14 +1049,20 @@ VkExtent2D VulkanApp::ChooseSwapExtent()
     }
 }
 
+VulkanApp* VulkanApp::s_Instance;
+
 int main() 
 {
     Eternity::CreateWindow(800, 600, "Eternity");
     Eternity::EventSystem::Init();
     Eternity::Input::Init();
 
-    VulkanApp app;
-    app.run();
+    VulkanApp* app = VulkanApp::Create();
+    // VulkanApp app;
+    // app.run();
+    app->Get()->run();
+
+    delete app;
 
     Eternity::DestroyWindow();
 

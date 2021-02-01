@@ -13,6 +13,7 @@ include_directories(${VENDORS}
                     ./
                     ./API/Vulkan/
                     ./API/Vulkan/Image
+                    ./API/Vulkan/Buffer
                     ./Core
                     ./Events
                     ./Input
@@ -31,6 +32,7 @@ add_executable(Eternity     main.cpp
                             ./API/Vulkan/RenderPass.cpp
                             ./API/Vulkan/Image/Image.cpp 
                             ./API/Vulkan/Image/DepthImage.cpp
+                            ./API/Vulkan/Buffer/Buffer.cpp
                             ./API/Vulkan/Utils.cpp)
                             
 target_link_libraries(Eternity vulkan glfw glm tinyobjloader stb_image)
