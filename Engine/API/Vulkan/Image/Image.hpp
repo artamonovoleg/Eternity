@@ -13,6 +13,7 @@ namespace Eternity
             VkImage         m_Image;
             VkImageView     m_ImageView;
             VkDeviceMemory  m_Memory;
+            VkFormat        m_Format;
 
             void CreateImage(const VkExtent3D& extent, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties);
             void CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
@@ -20,6 +21,7 @@ namespace Eternity
             Image(const Device& device, const VkExtent3D& extent, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImageAspectFlags aspectFlags);
             ~Image();
 
+            VkFormat        GetFormat() const { return m_Format; }
             VkDeviceMemory  GetImageMemory() { return m_Memory; };
 
             const VkImageView GetImageView() const { return m_ImageView; }

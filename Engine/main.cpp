@@ -160,18 +160,19 @@ private:
         m_Device            = std::make_shared<Eternity::Device>(*m_Instance, *m_PhysicalDevice);
         m_Swapchain         = std::make_shared<Eternity::Swapchain>(ChooseSwapExtent(), *m_Device);
         
+        CreateDepthResources();
         CreateRenderPass();
     }
 
-    std::shared_ptr<Eternity::Instance> m_Instance;
-    std::shared_ptr<Eternity::Surface> m_Surface;
-    std::shared_ptr<Eternity::PhysicalDevice> m_PhysicalDevice;
-    std::shared_ptr<Eternity::Device> m_Device;
-    std::shared_ptr<Eternity::Swapchain> m_Swapchain;
+    std::shared_ptr<Eternity::Instance>         m_Instance;
+    std::shared_ptr<Eternity::Surface>          m_Surface;
+    std::shared_ptr<Eternity::PhysicalDevice>   m_PhysicalDevice;
+    std::shared_ptr<Eternity::Device>           m_Device;
+    std::shared_ptr<Eternity::Swapchain>        m_Swapchain;
 
-    std::shared_ptr<Eternity::RenderPass> m_RenderPass;
+    std::shared_ptr<Eternity::RenderPass>       m_RenderPass;
 
-    std::shared_ptr<Eternity::Image> m_DepthImage;
+    std::shared_ptr<Eternity::Image>            m_DepthImage;
 
     std::vector<VkFramebuffer> swapChainFramebuffers;
     ///
@@ -209,7 +210,6 @@ private:
 
     void initVulkan() 
     {
-        createDepthResources();
         createFramebuffers();
         createCommandPool();
 
@@ -282,8 +282,8 @@ private:
 
         m_Swapchain->Recreate(ChooseSwapExtent());
 
+        CreateDepthResources();
         CreateRenderPass();
-        createDepthResources();
         createFramebuffers();
 
         createGraphicsPipeline();
@@ -296,7 +296,7 @@ private:
     void CreateRenderPass() 
     {
         Attachment colorAttachment(Attachment::Type::Color, 0, m_Swapchain->GetImageFormat());
-        Attachment depthAttachment(Attachment::Type::Depth, 1, FindDepthFormat(m_Device->GetPhysicalDevice()));
+        Attachment depthAttachment(Attachment::Type::Depth, 1, m_DepthImage->GetFormat());
 
         m_RenderPass = std::make_shared<Eternity::RenderPass>(*m_Device, std::vector{ colorAttachment }, depthAttachment);
     }
@@ -488,7 +488,7 @@ private:
             throw std::runtime_error("failed to create graphics command pool!");
     }
 
-    void createDepthResources() 
+    void CreateDepthResources() 
     {
         m_DepthImage = std::make_shared<Eternity::DepthImage>(*m_Device, m_Swapchain->GetExtent());
     }

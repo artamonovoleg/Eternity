@@ -7,7 +7,7 @@
 namespace Eternity
 {
     Image::Image(const Device& device, const VkExtent3D& extent, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImageAspectFlags aspectFlags)
-        : m_Device(device)
+        : m_Device(device), m_Format(format)
     {
         CreateImage(extent, format, tiling, usage, properties);
         CreateImageView(m_Image, format, aspectFlags);
