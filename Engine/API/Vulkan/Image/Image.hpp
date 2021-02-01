@@ -21,8 +21,8 @@ namespace Eternity
             Image(const Device& device, const VkExtent3D& extent, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImageAspectFlags aspectFlags);
             ~Image();
 
-            VkFormat        GetFormat() const { return m_Format; }
-            VkDeviceMemory  GetImageMemory() { return m_Memory; };
+            VkFormat          GetFormat() { return m_Format; }
+            const VkDeviceMemory&   GetImageMemory() const { return m_Memory; };
 
             const VkImageView GetImageView() const { return m_ImageView; }
             operator VkImage() { return m_Image; }

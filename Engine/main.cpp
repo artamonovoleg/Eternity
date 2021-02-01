@@ -170,9 +170,9 @@ private:
     std::shared_ptr<Eternity::Device>           m_Device;
     std::shared_ptr<Eternity::Swapchain>        m_Swapchain;
 
-    std::shared_ptr<Eternity::RenderPass>       m_RenderPass;
-
     std::shared_ptr<Eternity::Image>            m_DepthImage;
+
+    std::shared_ptr<Eternity::RenderPass>       m_RenderPass;
 
     std::vector<VkFramebuffer> swapChainFramebuffers;
     ///
