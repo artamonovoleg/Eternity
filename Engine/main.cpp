@@ -43,6 +43,7 @@
 #include "Framebuffers.hpp"
 #include "CommandPool.hpp"
 #include "Buffer.hpp"
+#include "CommandBuffer.hpp"
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -140,21 +141,6 @@ private:
     /// Rewrited code
     VkExtent2D ChooseSwapExtent();
 
-    void Prepare()
-    {
-        m_Instance          = std::make_shared<Eternity::Instance>();
-        m_Surface           = std::make_shared<Eternity::Surface>(*m_Instance);
-        m_PhysicalDevice    = std::make_shared<Eternity::PhysicalDevice>(*m_Instance, *m_Surface);
-        m_Device            = std::make_shared<Eternity::Device>(*m_Instance, *m_PhysicalDevice);
-        m_Swapchain         = std::make_shared<Eternity::Swapchain>(ChooseSwapExtent(), *m_Device);
-        
-        m_DepthImage        = std::make_shared<Eternity::DepthImage>(*m_Device, m_Swapchain->GetExtent());
-        CreateRenderPass();
-
-        m_Framebuffers      = std::make_shared<Eternity::Framebuffers>(*m_Swapchain, *m_RenderPass, *m_DepthImage);
-        m_CommandPool       = std::make_shared<Eternity::CommandPool>(*m_Device);
-    }
-
     std::shared_ptr<Eternity::Instance>         m_Instance;
     std::shared_ptr<Eternity::Surface>          m_Surface;
     std::shared_ptr<Eternity::PhysicalDevice>   m_PhysicalDevice;
@@ -189,7 +175,7 @@ private:
     VkDescriptorPool descriptorPool;
     std::vector<VkDescriptorSet> descriptorSets;
 
-    std::vector<VkCommandBuffer> commandBuffers;
+    std::vector<std::shared_ptr<Eternity::CommandBuffer>> m_CommandBuffers;
 
     std::vector<VkSemaphore> imageAvailableSemaphores;
     std::vector<VkSemaphore> renderFinishedSemaphores;
@@ -198,6 +184,21 @@ private:
     size_t currentFrame = 0;
 
     bool framebufferResized = false;
+
+    void Prepare()
+    {
+        m_Instance          = std::make_shared<Eternity::Instance>();
+        m_Surface           = std::make_shared<Eternity::Surface>(*m_Instance);
+        m_PhysicalDevice    = std::make_shared<Eternity::PhysicalDevice>(*m_Instance, *m_Surface);
+        m_Device            = std::make_shared<Eternity::Device>(*m_Instance, *m_PhysicalDevice);
+        m_Swapchain         = std::make_shared<Eternity::Swapchain>(ChooseSwapExtent(), *m_Device);
+        
+        m_DepthImage        = std::make_shared<Eternity::DepthImage>(*m_Device, m_Swapchain->GetExtent());
+        CreateRenderPass();
+
+        m_Framebuffers      = std::make_shared<Eternity::Framebuffers>(*m_Swapchain, *m_RenderPass, *m_DepthImage);
+        m_CommandPool       = std::make_shared<Eternity::CommandPool>(*m_Device);
+    }
 
     void initVulkan() 
     {
@@ -228,8 +229,6 @@ private:
 
     void cleanupSwapChain() 
     {
-        vkFreeCommandBuffers(*m_Device, *m_CommandPool, static_cast<uint32_t>(commandBuffers.size()), commandBuffers.data());
-
         vkDestroyPipeline(*m_Device, graphicsPipeline, nullptr);
         vkDestroyPipelineLayout(*m_Device, pipelineLayout, nullptr);
 
@@ -776,60 +775,46 @@ private:
     }
 
     void createCommandBuffers() {
-        commandBuffers.resize(m_Framebuffers->GetBuffersCount());
 
-        VkCommandBufferAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        allocInfo.commandPool = *m_CommandPool;
-        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        allocInfo.commandBufferCount = (uint32_t) commandBuffers.size();
+        m_CommandBuffers.resize(m_Framebuffers->GetBuffersCount());
+        for (int i = 0; i < m_Framebuffers->GetBuffersCount(); i++)
+            m_CommandBuffers[i] = std::make_shared<Eternity::CommandBuffer>(*m_Device, *m_CommandPool);
 
-        if (vkAllocateCommandBuffers(*m_Device, &allocInfo, commandBuffers.data()) != VK_SUCCESS) {
-            throw std::runtime_error("failed to allocate command buffers!");
-        }
+        for (size_t i = 0; i < m_CommandBuffers.size(); i++) 
+        {
 
-        for (size_t i = 0; i < commandBuffers.size(); i++) {
-            VkCommandBufferBeginInfo beginInfo{};
-            beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+            m_CommandBuffers[i]->Begin();
 
-            if (vkBeginCommandBuffer(commandBuffers[i], &beginInfo) != VK_SUCCESS) {
-                throw std::runtime_error("failed to begin recording command buffer!");
-            }
+                VkRenderPassBeginInfo renderPassInfo{};
+                renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+                renderPassInfo.renderPass = *m_RenderPass;
+                renderPassInfo.framebuffer = m_Framebuffers->GetBuffers().at(i);
+                renderPassInfo.renderArea.offset = {0, 0};
+                renderPassInfo.renderArea.extent = m_Swapchain->GetExtent();
 
-            VkRenderPassBeginInfo renderPassInfo{};
-            renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-            renderPassInfo.renderPass = *m_RenderPass;
-            renderPassInfo.framebuffer = m_Framebuffers->GetBuffers().at(i);
-            renderPassInfo.renderArea.offset = {0, 0};
-            renderPassInfo.renderArea.extent = m_Swapchain->GetExtent();
+                std::array<VkClearValue, 2> clearValues{};
+                clearValues[0].color = {0.0f, 0.0f, 0.0f, 1.0f};
+                clearValues[1].depthStencil = {1.0f, 0};
 
-            std::array<VkClearValue, 2> clearValues{};
-            clearValues[0].color = {0.0f, 0.0f, 0.0f, 1.0f};
-            clearValues[1].depthStencil = {1.0f, 0};
+                renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+                renderPassInfo.pClearValues = clearValues.data();
 
-            renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-            renderPassInfo.pClearValues = clearValues.data();
+                m_CommandBuffers[i]->BeginRenderPass(&renderPassInfo,  VK_SUBPASS_CONTENTS_INLINE);
+                    m_CommandBuffers[i]->BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
-            vkCmdBeginRenderPass(commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+                    VkBuffer vertexBuffers[] = { *m_VertexBuffer };
+                    VkDeviceSize offsets[] = {0};
 
-                vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+                    vkCmdBindVertexBuffers(*m_CommandBuffers[i], 0, 1, vertexBuffers, offsets);
 
-                VkBuffer vertexBuffers[] = { *m_VertexBuffer };
-                VkDeviceSize offsets[] = {0};
+                    vkCmdBindIndexBuffer(*m_CommandBuffers[i], *m_IndexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
-                vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
+                    vkCmdBindDescriptorSets(*m_CommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[i], 0, nullptr);
 
-                vkCmdBindIndexBuffer(commandBuffers[i], *m_IndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-
-                vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[i], 0, nullptr);
-
-                vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
-                
-            vkCmdEndRenderPass(commandBuffers[i]);
-
-            if (vkEndCommandBuffer(commandBuffers[i]) != VK_SUCCESS) {
-                throw std::runtime_error("failed to record command buffer!");
-            }
+                    vkCmdDrawIndexed(*m_CommandBuffers[i], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+                    
+                m_CommandBuffers[i]->EndRenderPass();
+            m_CommandBuffers[i]->End();
         }
     }
 
@@ -905,7 +890,8 @@ private:
         submitInfo.pWaitDstStageMask = waitStages;
 
         submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &commandBuffers[m_Swapchain->GetActiveImageIndex()];
+        const VkCommandBuffer& cmdBuff = *m_CommandBuffers[m_Swapchain->GetActiveImageIndex()];
+        submitInfo.pCommandBuffers = &cmdBuff;
 
         VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[currentFrame]};
         submitInfo.signalSemaphoreCount = 1;

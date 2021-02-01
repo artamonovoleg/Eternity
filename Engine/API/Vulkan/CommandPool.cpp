@@ -12,7 +12,7 @@ namespace Eternity
         VkCommandPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         poolInfo.queueFamilyIndex = m_Device.GetPhysicalDevice().GetQueueFamilyIndex(QueueType::Graphics);
-
+        // poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
         VkCheck(vkCreateCommandPool(m_Device, &poolInfo, nullptr, &m_CommandPool));
         ET_TRACE("Command pool created");
     }

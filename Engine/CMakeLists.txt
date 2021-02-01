@@ -35,6 +35,7 @@ add_executable(Eternity     main.cpp
                             ./API/Vulkan/Framebuffers.cpp
                             ./API/Vulkan/CommandPool.cpp
                             ./API/Vulkan/Buffer/Buffer.cpp
+                            ./API/Vulkan/Buffer/CommandBuffer.cpp
                             ./API/Vulkan/Utils.cpp)
                             
 target_link_libraries(Eternity vulkan glfw glm tinyobjloader stb_image)
