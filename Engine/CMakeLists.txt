@@ -24,6 +24,7 @@ add_executable(Eternity     main.cpp
                             ./Core/Window.cpp
                             ./Events/EventSystem.cpp
                             ./Input/Input.cpp
+                            ./API/Vulkan/Utils.cpp
                             ./API/Vulkan/Instance.cpp
                             ./API/Vulkan/Surface.cpp
                             ./API/Vulkan/PhysicalDevice.cpp
@@ -36,6 +37,7 @@ add_executable(Eternity     main.cpp
                             ./API/Vulkan/CommandPool.cpp
                             ./API/Vulkan/Buffer/Buffer.cpp
                             ./API/Vulkan/Buffer/CommandBuffer.cpp
-                            ./API/Vulkan/Utils.cpp)
+                            ./API/Vulkan/Shader.cpp
+                            )
                             
 target_link_libraries(Eternity vulkan glfw glm tinyobjloader stb_image)
