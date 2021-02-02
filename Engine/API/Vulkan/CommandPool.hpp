@@ -21,7 +21,7 @@ namespace Eternity
             CommandBuffer   BeginSingleTimeCommands() const;
             void            EndSingleTimeCommands(const CommandBuffer& buffer) const;
 
-            void            CopyBuffer(const Buffer& srcBuffer, Buffer& dstBuffer, VkDeviceSize size);
+            void            CopyBuffer(const Buffer& srcBuffer, Buffer& dstBuffer, VkDeviceSize size) const;
 
             const Device& GetDevice() const { return m_Device; }
             operator VkCommandPool() { return m_CommandPool; }

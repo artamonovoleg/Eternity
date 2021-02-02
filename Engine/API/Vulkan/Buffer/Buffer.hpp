@@ -6,7 +6,8 @@
 namespace Eternity
 {
     class Device;
-    
+    class CommandPool;
+
     class Buffer
     {
         protected:
@@ -24,4 +25,9 @@ namespace Eternity
             operator VkBuffer() { return m_Buffer; }
             operator VkBuffer() const { return m_Buffer; }
     };
+    
+    /// Vuffer create helpers
+    std::shared_ptr<Buffer> CreateVertexBuffer(const CommandPool& commandPool, const void* data, VkDeviceSize size);
+    std::shared_ptr<Buffer> CreateIndexBuffer(const CommandPool& commandPool, const void* data, VkDeviceSize size);
+    
 } // namespace Eternity

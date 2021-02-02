@@ -1,6 +1,7 @@
 #include <cstring>
 #include "Buffer.hpp"
 #include "Device.hpp"
+#include "CommandPool.hpp"
 #include "VkCheck.hpp"
 #include "Utils.hpp"
 #include "Base.hpp"
@@ -46,4 +47,38 @@ namespace Eternity
     {
         vkUnmapMemory(m_Device, m_Memory);
     }
+
+    /// Vuffer create helpers
+    std::shared_ptr<Buffer> CreateVertexBuffer(const CommandPool& commandPool, const void* verticesData, VkDeviceSize size)
+    {
+        Buffer stagingBuffer (commandPool.GetDevice(), size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        
+        void* data;
+        stagingBuffer.MapMemory(&data);
+            std::memcpy(data, verticesData, (size_t) size);
+        stagingBuffer.UnmapMemory();
+
+        auto vertexBuffer = std::make_shared<Eternity::Buffer>(commandPool.GetDevice(), size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+        commandPool.CopyBuffer(stagingBuffer, *vertexBuffer, size);
+
+        return vertexBuffer;
+    }
+
+    std::shared_ptr<Buffer> CreateIndexBuffer(const CommandPool& commandPool, const void* indicesData, VkDeviceSize size)
+    {
+        Buffer stagingBuffer (commandPool.GetDevice(), size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+        void* data;
+        stagingBuffer.MapMemory(&data);
+            std::memcpy(data, indicesData, (size_t) size);
+        stagingBuffer.UnmapMemory();
+
+        auto indexBuffer = std::make_shared<Eternity::Buffer>(commandPool.GetDevice(), size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        
+        commandPool.CopyBuffer(stagingBuffer, *indexBuffer, size);
+        
+        return indexBuffer;
+    }
+
 } // namespace Eternity

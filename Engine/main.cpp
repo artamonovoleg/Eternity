@@ -152,11 +152,11 @@ private:
     std::shared_ptr<Eternity::RenderPass>       m_RenderPass;
 
     std::shared_ptr<Eternity::Framebuffers>     m_Framebuffers;
-    ///
 
     std::shared_ptr<Eternity::CommandPool>      m_CommandPool;
 
     std::shared_ptr<Eternity::Image2D>          m_TextureImage;
+    ///
 
     VkDescriptorSetLayout   descriptorSetLayout;
     VkPipelineLayout        pipelineLayout;
@@ -204,8 +204,8 @@ private:
         createGraphicsPipeline();
         m_TextureImage = std::make_shared<Eternity::Image2D>(*m_CommandPool, TEXTURE_PATH);
         loadModel();
-        createVertexBuffer(vertices.data(), sizeof(vertices[0]) * vertices.size());
-        createIndexBuffer(indices.data(), sizeof(indices[0]) * indices.size());
+        m_VertexBuffer = CreateVertexBuffer(*m_CommandPool, vertices.data(), sizeof(vertices[0]) * vertices.size());
+        m_IndexBuffer = CreateIndexBuffer(*m_CommandPool, indices.data(), sizeof(indices[0]) * indices.size());
         CreateUniformBuffers();
         createDescriptorPool();
         createDescriptorSets();
@@ -444,37 +444,6 @@ private:
                 indices.push_back(uniqueVertices[vertex]);
             }
         }
-    }
-
-    void createVertexBuffer(const void* verticesData, uint32_t size)
-    {
-        VkDeviceSize bufferSize = size;
-
-        Buffer stagingBuffer (*m_Device, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-        void* data;
-        stagingBuffer.MapMemory(&data);
-            std::memcpy(data, verticesData, (size_t) bufferSize);
-        stagingBuffer.UnmapMemory();
-
-        m_VertexBuffer = std::make_shared<Eternity::Buffer>(*m_Device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-        m_CommandPool->CopyBuffer(stagingBuffer, *m_VertexBuffer, bufferSize);
-    }
-
-    void createIndexBuffer(const void* indicesData, uint32_t size) 
-    {
-        VkDeviceSize bufferSize = size;
-
-        Buffer stagingBuffer (*m_Device, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-        void* data;
-        stagingBuffer.MapMemory(&data);
-            std::memcpy(data, indicesData, (size_t) bufferSize);
-        stagingBuffer.UnmapMemory();
-
-        m_IndexBuffer = std::make_shared<Eternity::Buffer>(*m_Device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        
-        m_CommandPool->CopyBuffer(stagingBuffer, *m_IndexBuffer, bufferSize);
     }
 
     void CreateUniformBuffers() 

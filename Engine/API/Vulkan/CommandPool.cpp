@@ -38,7 +38,7 @@ namespace Eternity
         buffer.EndSingleTime();
     }
 
-    void CommandPool::CopyBuffer(const Buffer& srcBuffer, Buffer& dstBuffer, VkDeviceSize size)
+    void CommandPool::CopyBuffer(const Buffer& srcBuffer, Buffer& dstBuffer, VkDeviceSize size) const
     {
         CommandBuffer buffer = BeginSingleTimeCommands();
 
