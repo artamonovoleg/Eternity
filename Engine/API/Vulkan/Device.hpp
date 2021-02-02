@@ -23,7 +23,7 @@ namespace Eternity
             VkImageView             CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags) const;
 
             const PhysicalDevice&   GetPhysicalDevice() const { return m_PhysicalDevice; }
-            VkQueue                 GetQueue(QueueType type);
+            VkQueue                 GetQueue(QueueType type) const;
 
             operator VkDevice() { return m_Device; }
             operator VkDevice() const { return m_Device; }

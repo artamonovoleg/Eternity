@@ -32,6 +32,11 @@ namespace Eternity
         VkCheck(vkBeginCommandBuffer(m_Buffer, &beginInfo));
     }
 
+    void CommandBuffer::Begin(VkCommandBufferBeginInfo* beginInfo)
+    {
+        VkCheck(vkBeginCommandBuffer(m_Buffer, beginInfo));
+    }
+
     void CommandBuffer::BeginRenderPass(const VkRenderPassBeginInfo* beginInfo, const VkSubpassContents& contents)
     {
         vkCmdBeginRenderPass(m_Buffer, beginInfo, contents);
@@ -47,7 +52,7 @@ namespace Eternity
         vkCmdEndRenderPass(m_Buffer);
     }
 
-    void CommandBuffer::End()
+    void CommandBuffer::End() const
     {
         vkEndCommandBuffer(m_Buffer);
     }

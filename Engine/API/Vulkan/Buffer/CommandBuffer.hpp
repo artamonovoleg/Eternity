@@ -20,10 +20,12 @@ namespace Eternity
             ~CommandBuffer();
 
             void Begin();
+            void Begin(VkCommandBufferBeginInfo* beginInfo);
             void BeginRenderPass(const VkRenderPassBeginInfo* beginInfo, const VkSubpassContents& contents);
             void BindPipeline(VkPipelineBindPoint pipelineBindPoint, VkPipeline pipeline);
             void EndRenderPass();
-            void End();
+            // void End();
+            void End() const;
 
             operator VkCommandBuffer() { return m_Buffer; }
             operator VkCommandBuffer() const { return m_Buffer; }

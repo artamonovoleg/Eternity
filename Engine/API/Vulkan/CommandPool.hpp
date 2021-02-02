@@ -5,6 +5,7 @@
 namespace Eternity
 {
     class Device;
+    class CommandBuffer;
 
     class CommandPool
     {
@@ -15,6 +16,9 @@ namespace Eternity
         public:
             CommandPool(const Device& device);
             ~CommandPool();
+
+            CommandBuffer  BeginSingleTimeCommands();
+            void    EndSingleTimeCommands(const CommandBuffer& buffer);
 
             operator VkCommandPool() { return m_CommandPool; }
             operator VkCommandPool() const { return m_CommandPool; }

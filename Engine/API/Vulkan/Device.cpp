@@ -84,7 +84,7 @@ namespace Eternity
         return imageView;
     }
     
-    VkQueue Device::GetQueue(QueueType type)
+    VkQueue Device::GetQueue(QueueType type) const
     {
         switch (type)
         {

@@ -14,7 +14,5 @@ namespace Eternity
                 VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,    // usage
                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,            // properties
                 VK_IMAGE_ASPECT_DEPTH_BIT
-                )
-    {
-    }
+                ){}
 } // namespace Eternity
