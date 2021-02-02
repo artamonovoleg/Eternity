@@ -15,7 +15,6 @@
 #include <tiny_obj_loader.h>
 
 #include <iostream>
-#include <fstream>
 #include <stdexcept>
 #include <memory>
 #include <algorithm>
@@ -25,8 +24,6 @@
 #include <cstdlib>
 #include <cstdint>
 #include <array>
-#include <optional>
-#include <set>
 #include <unordered_map>
 #include "Utils.hpp"
 #include "Window.hpp"
@@ -315,19 +312,7 @@ private:
         Shader vertShader(*m_Device, Shader::Type::Vertex, "../shaders/vert.spv");
         Shader fragShader(*m_Device, Shader::Type::Vertex, "../shaders/frag.spv");
         
-        VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
-        vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-        vertShaderStageInfo.module = vertShader;
-        vertShaderStageInfo.pName = "main";
-
-        VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
-        fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-        fragShaderStageInfo.module = fragShader;
-        fragShaderStageInfo.pName = "main";
-
-        VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
+        ShaderStage shaderStage (vertShader, fragShader);
 
         VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
         vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -413,7 +398,7 @@ private:
         VkGraphicsPipelineCreateInfo pipelineInfo{};
         pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
         pipelineInfo.stageCount = 2;
-        pipelineInfo.pStages = shaderStages;
+        pipelineInfo.pStages = shaderStage.GetStages();
         pipelineInfo.pVertexInputState = &vertexInputInfo;
         pipelineInfo.pInputAssemblyState = &inputAssembly;
         pipelineInfo.pViewportState = &viewportState;
