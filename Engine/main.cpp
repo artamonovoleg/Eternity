@@ -41,6 +41,7 @@
 #include "Framebuffers.hpp"
 #include "CommandPool.hpp"
 #include "Buffer.hpp"
+#include "UniformBuffer.hpp"
 #include "CommandBuffer.hpp"
 #include "Shader.hpp"
 
@@ -155,7 +156,7 @@ private:
 
     std::shared_ptr<Eternity::CommandPool>      m_CommandPool;
 
-    std::shared_ptr<Eternity::Image2D>            m_TextureImage;
+    std::shared_ptr<Eternity::Image2D>          m_TextureImage;
 
     VkDescriptorSetLayout   descriptorSetLayout;
     VkPipelineLayout        pipelineLayout;
@@ -167,8 +168,7 @@ private:
     std::shared_ptr<Eternity::Buffer> m_VertexBuffer;
     std::shared_ptr<Eternity::Buffer> m_IndexBuffer;
 
-    std::vector<VkBuffer> uniformBuffers;
-    std::vector<VkDeviceMemory> uniformBuffersMemory;
+    std::vector<std::shared_ptr<UniformBuffer>> m_UniformBuffers;
 
     VkDescriptorPool descriptorPool;
     std::vector<VkDescriptorSet> descriptorSets;
@@ -206,7 +206,7 @@ private:
         loadModel();
         createVertexBuffer(vertices.data(), sizeof(vertices[0]) * vertices.size());
         createIndexBuffer(indices.data(), sizeof(indices[0]) * indices.size());
-        createUniformBuffers();
+        CreateUniformBuffers();
         createDescriptorPool();
         createDescriptorSets();
         createCommandBuffers();
@@ -228,13 +228,6 @@ private:
     {
         vkDestroyPipeline(*m_Device, graphicsPipeline, nullptr);
         vkDestroyPipelineLayout(*m_Device, pipelineLayout, nullptr);
-
-        for (size_t i = 0; i < m_Swapchain->GetImageCount(); i++) 
-        {
-            vkDestroyBuffer(*m_Device, uniformBuffers[i], nullptr);
-            vkFreeMemory(*m_Device, uniformBuffersMemory[i], nullptr);
-        }
-
         vkDestroyDescriptorPool(*m_Device, descriptorPool, nullptr);
     }
 
@@ -264,7 +257,7 @@ private:
         m_Framebuffers = std::make_shared<Eternity::Framebuffers>(*m_Swapchain, *m_RenderPass, *m_DepthImage);
 
         createGraphicsPipeline();
-        createUniformBuffers();
+        CreateUniformBuffers();
         createDescriptorPool();
         createDescriptorSets();
         createCommandBuffers();
@@ -484,15 +477,13 @@ private:
         m_CommandPool->CopyBuffer(stagingBuffer, *m_IndexBuffer, bufferSize);
     }
 
-    void createUniformBuffers() 
+    void CreateUniformBuffers() 
     {
         VkDeviceSize bufferSize = sizeof(UniformBufferObject);
-
-        uniformBuffers.resize(m_Swapchain->GetImageCount());
-        uniformBuffersMemory.resize(m_Swapchain->GetImageCount());
+        m_UniformBuffers.resize(m_Swapchain->GetImageCount());
 
         for (size_t i = 0; i < m_Swapchain->GetImageCount(); i++) 
-            createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i]);
+            m_UniformBuffers[i] = std::make_shared<UniformBuffer>(*m_Device, sizeof(UniformBufferObject));
     }
 
     void createDescriptorPool() {
@@ -529,7 +520,7 @@ private:
         for (size_t i = 0; i < m_Swapchain->GetImageCount(); i++) 
         {
             VkDescriptorBufferInfo bufferInfo{};
-            bufferInfo.buffer = uniformBuffers[i];
+            bufferInfo.buffer = *m_UniformBuffers[i];
             bufferInfo.offset = 0;
             bufferInfo.range = sizeof(UniformBufferObject);
 
@@ -558,32 +549,6 @@ private:
 
             vkUpdateDescriptorSets(*m_Device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
         }
-    }
-
-    void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) 
-    {
-        VkBufferCreateInfo bufferInfo{};
-        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        bufferInfo.size = size;
-        bufferInfo.usage = usage;
-        bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-        if (vkCreateBuffer(*m_Device, &bufferInfo, nullptr, &buffer) != VK_SUCCESS) 
-            throw std::runtime_error("failed to create buffer!");
-
-        VkMemoryRequirements memRequirements;
-        vkGetBufferMemoryRequirements(*m_Device, buffer, &memRequirements);
-
-        VkMemoryAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        allocInfo.allocationSize = memRequirements.size;
-        allocInfo.memoryTypeIndex = FindMemoryType(m_Device->GetPhysicalDevice(), memRequirements.memoryTypeBits, properties);
-
-        if (vkAllocateMemory(*m_Device, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS) {
-            throw std::runtime_error("failed to allocate buffer memory!");
-        }
-
-        vkBindBufferMemory(*m_Device, buffer, bufferMemory, 0);
     }
 
     void createCommandBuffers() {
@@ -652,7 +617,8 @@ private:
         }
     }
 
-    void updateUniformBuffer(uint32_t currentImage) {
+    void UpdateUniformBuffer(uint32_t currentImage) 
+    {
         static auto startTime = std::chrono::high_resolution_clock::now();
 
         auto currentTime = std::chrono::high_resolution_clock::now();
@@ -665,9 +631,9 @@ private:
         ubo.proj[1][1] *= -1;
 
         void* data;
-        vkMapMemory(*m_Device, uniformBuffersMemory[currentImage], 0, sizeof(ubo), 0, &data);
-            memcpy(data, &ubo, sizeof(ubo));
-        vkUnmapMemory(*m_Device, uniformBuffersMemory[currentImage]);
+        m_UniformBuffers[currentImage]->MapMemory(sizeof(ubo), &data);
+            std::memcpy(data, &ubo, sizeof(ubo));
+        m_UniformBuffers[currentImage]->UnmapMemory();
     }
 
     void drawFrame() {
@@ -685,7 +651,7 @@ private:
             throw std::runtime_error("failed to acquire swap chain image!");
         }
 
-        updateUniformBuffer(m_Swapchain->GetActiveImageIndex());
+        UpdateUniformBuffer(m_Swapchain->GetActiveImageIndex());
 
         if (imagesInFlight[m_Swapchain->GetActiveImageIndex()] != VK_NULL_HANDLE) 
             vkWaitForFences(*m_Device, 1, &imagesInFlight[m_Swapchain->GetActiveImageIndex()], VK_TRUE, UINT64_MAX);

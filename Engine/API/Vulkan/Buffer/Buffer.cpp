@@ -42,11 +42,6 @@ namespace Eternity
         vkMapMemory(m_Device, m_Memory, 0, m_Size, 0, data);
     }
 
-    void Buffer::MapMemory(VkDeviceSize size, void** data)
-    {
-        vkMapMemory(m_Device, m_Memory, 0, size, 0, data);
-    }
-
     void Buffer::UnmapMemory()
     {
         vkUnmapMemory(m_Device, m_Memory);

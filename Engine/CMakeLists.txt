@@ -38,6 +38,7 @@ add_executable(Eternity     main.cpp
                             ./API/Vulkan/Framebuffers.cpp
                             ./API/Vulkan/CommandPool.cpp
                             ./API/Vulkan/Buffer/Buffer.cpp
+                            ./API/Vulkan/Buffer/UniformBuffer.cpp
                             ./API/Vulkan/Buffer/CommandBuffer.cpp
                             ./API/Vulkan/Shader.cpp
                             )

@@ -9,7 +9,7 @@ namespace Eternity
     
     class Buffer
     {
-        private:
+        protected:
             const Device&   m_Device;
             VkBuffer        m_Buffer;
             VkDeviceMemory  m_Memory;
@@ -19,7 +19,6 @@ namespace Eternity
             ~Buffer();
 
             void MapMemory(void** data);
-            void MapMemory(VkDeviceSize size, void** data);
             void UnmapMemory();
 
             operator VkBuffer() { return m_Buffer; }
