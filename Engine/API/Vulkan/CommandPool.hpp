@@ -17,9 +17,10 @@ namespace Eternity
             CommandPool(const Device& device);
             ~CommandPool();
 
-            CommandBuffer  BeginSingleTimeCommands();
-            void    EndSingleTimeCommands(const CommandBuffer& buffer);
+            CommandBuffer  BeginSingleTimeCommands() const;
+            void    EndSingleTimeCommands(const CommandBuffer& buffer) const;
 
+            const Device& GetDevice() const { return m_Device; }
             operator VkCommandPool() { return m_CommandPool; }
             operator VkCommandPool() const { return m_CommandPool; }
     };

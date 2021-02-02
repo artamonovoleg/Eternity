@@ -7,7 +7,7 @@ namespace Eternity
 
     class Image
     {
-        private:
+        protected:
             const Device&   m_Device;
 
             VkImage                 m_Image;

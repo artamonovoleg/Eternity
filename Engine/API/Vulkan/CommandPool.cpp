@@ -24,7 +24,7 @@ namespace Eternity
         ET_TRACE("Command pool destroyed");
     }
 
-    CommandBuffer  CommandPool::BeginSingleTimeCommands()
+    CommandBuffer  CommandPool::BeginSingleTimeCommands() const
     {
         VkCommandBufferBeginInfo beginInfo{};
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -36,7 +36,7 @@ namespace Eternity
         return buffer;
     }
 
-    void CommandPool::EndSingleTimeCommands(const CommandBuffer& buffer)
+    void CommandPool::EndSingleTimeCommands(const CommandBuffer& buffer) const
     {
         buffer.End();
 

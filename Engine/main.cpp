@@ -37,6 +37,7 @@
 #include "RenderPass.hpp"
 #include "Image.hpp"
 #include "DepthImage.hpp"
+#include "Image2D.hpp"
 #include "Framebuffers.hpp"
 #include "CommandPool.hpp"
 #include "Buffer.hpp"
@@ -154,7 +155,7 @@ private:
 
     std::shared_ptr<Eternity::CommandPool>      m_CommandPool;
 
-    std::shared_ptr<Eternity::Image>            m_TextureImage;
+    std::shared_ptr<Eternity::Image2D>            m_TextureImage;
     VkSampler textureSampler;
 
     VkDescriptorSetLayout descriptorSetLayout;
@@ -417,27 +418,27 @@ private:
     }
 
     void createTextureImage() {
-        int texWidth, texHeight, texChannels;
-        stbi_uc* pixels = stbi_load(TEXTURE_PATH.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-        VkDeviceSize imageSize = texWidth * texHeight * 4;
+        // int texWidth, texHeight, texChannels;
+        // stbi_uc* pixels = stbi_load(TEXTURE_PATH.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+        // VkDeviceSize imageSize = texWidth * texHeight * 4;
 
-        if (!pixels) 
-            throw std::runtime_error("failed to load texture image!");
+        // if (!pixels) 
+        //     throw std::runtime_error("failed to load texture image!");
 
-        Buffer stageBuff(*m_Device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        // Buffer stageBuff(*m_Device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-        void* data;
-        stageBuff.MapMemory(&data);
-            std::memcpy(data, pixels, static_cast<size_t>(imageSize));
-        stageBuff.UnmapMemory();
+        // void* data;
+        // stageBuff.MapMemory(&data);
+        //     std::memcpy(data, pixels, static_cast<size_t>(imageSize));
+        // stageBuff.UnmapMemory();
 
-        stbi_image_free(pixels);
+        // stbi_image_free(pixels);
 
-        VkExtent3D texExtent { static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight), 1 };
-        m_TextureImage = std::make_shared<Eternity::Image>(*m_Device, texExtent, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
-        transitionImageLayout(*m_TextureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-            copyBufferToImage(stageBuff, *m_TextureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
-        transitionImageLayout(*m_TextureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        // VkExtent3D texExtent { static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight), 1 };
+        m_TextureImage = std::make_shared<Eternity::Image2D>(*m_CommandPool, TEXTURE_PATH);
+        // transitionImageLayout(*m_TextureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+            // copyBufferToImage(stageBuff, *m_TextureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+        // transitionImageLayout(*m_TextureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     }
 
     void createTextureSampler() {
