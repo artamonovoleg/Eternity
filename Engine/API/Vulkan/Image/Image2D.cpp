@@ -1,10 +1,11 @@
 #include <cstring>
-// #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 #include "Image2D.hpp"
 #include "CommandPool.hpp"
 #include "CommandBuffer.hpp"
 #include "Device.hpp"
+#include "PhysicalDevice.hpp"
+#include "VkCheck.hpp"
 #include "Base.hpp"
 
 namespace Eternity
@@ -36,7 +37,15 @@ namespace Eternity
         TransitionImageLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
             CopyBufferToImage(stageBuff);
         TransitionImageLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+        CreateSampler();
     };
+
+    Image2D::~Image2D()
+    {
+        vkDestroySampler(m_Device, m_Sampler, nullptr);
+        ET_TRACE("Sampler destroyed");
+    }
 
     void Image2D::TransitionImageLayout(VkImageLayout oldLayout, VkImageLayout newLayout) 
     {
@@ -109,5 +118,29 @@ namespace Eternity
         vkCmdCopyBufferToImage(commandBuffer, buffer, m_Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
         m_CommandPool.EndSingleTimeCommands(commandBuffer);
+    }
+
+    void Image2D::CreateSampler()
+    {
+        VkPhysicalDeviceProperties properties{};
+        vkGetPhysicalDeviceProperties(m_Device.GetPhysicalDevice(), &properties);
+
+        VkSamplerCreateInfo samplerInfo{};
+        samplerInfo.sType                   = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        samplerInfo.magFilter               = VK_FILTER_LINEAR;
+        samplerInfo.minFilter               = VK_FILTER_LINEAR;
+        samplerInfo.addressModeU            = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        samplerInfo.addressModeV            = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        samplerInfo.addressModeW            = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        samplerInfo.anisotropyEnable        = VK_TRUE;
+        samplerInfo.maxAnisotropy           = properties.limits.maxSamplerAnisotropy;
+        samplerInfo.borderColor             = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+        samplerInfo.unnormalizedCoordinates = VK_FALSE;
+        samplerInfo.compareEnable           = VK_FALSE;
+        samplerInfo.compareOp               = VK_COMPARE_OP_ALWAYS;
+        samplerInfo.mipmapMode              = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+
+        VkCheck(vkCreateSampler(m_Device, &samplerInfo, nullptr, &m_Sampler));
+        ET_TRACE("Sampler created");
     }
 } // namespace Eternity

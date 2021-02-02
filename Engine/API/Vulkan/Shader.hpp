@@ -52,7 +52,7 @@ namespace Eternity
                 info.stage  = VK_SHADER_STAGE_FRAGMENT_BIT;
                 m_Stages.push_back(info);
             }
-
+            
             const VkPipelineShaderStageCreateInfo* GetStages() const { return m_Stages.data(); }
     };
 } // namespace Eternity

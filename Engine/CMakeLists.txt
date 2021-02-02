@@ -20,6 +20,7 @@ include_directories(${VENDORS}
                     ./Utils)
 
 add_definitions(-DET_DEBUG)
+
 add_executable(Eternity     main.cpp
                             ./Core/Window.cpp
                             ./Events/EventSystem.cpp
