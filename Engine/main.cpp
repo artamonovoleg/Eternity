@@ -203,7 +203,7 @@ private:
         createDescriptorSetLayout();
         createGraphicsPipeline();
         m_TextureImage = std::make_shared<Eternity::Image2D>(*m_CommandPool, TEXTURE_PATH);
-        loadModel();
+        LoadModel();
         m_VertexBuffer = CreateVertexBuffer(*m_CommandPool, vertices.data(), sizeof(vertices[0]) * vertices.size());
         m_IndexBuffer = CreateIndexBuffer(*m_CommandPool, indices.data(), sizeof(indices[0]) * indices.size());
         CreateUniformBuffers();
@@ -286,7 +286,7 @@ private:
         samplerLayoutBinding.pImmutableSamplers = nullptr;
         samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-        std::array<VkDescriptorSetLayoutBinding, 2> bindings = {uboLayoutBinding, samplerLayoutBinding};
+        std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding };
         VkDescriptorSetLayoutCreateInfo layoutInfo{};
         layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
         layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
@@ -406,7 +406,7 @@ private:
 
     }
 
-    void loadModel() 
+    void LoadModel() 
     {
         tinyobj::attrib_t attrib;
         std::vector<tinyobj::shape_t> shapes;
@@ -448,10 +448,9 @@ private:
 
     void CreateUniformBuffers() 
     {
-        VkDeviceSize bufferSize = sizeof(UniformBufferObject);
         m_UniformBuffers.resize(m_Swapchain->GetImageCount());
 
-        for (size_t i = 0; i < m_Swapchain->GetImageCount(); i++) 
+        for (size_t i = 0; i < m_UniformBuffers.size(); i++) 
             m_UniformBuffers[i] = std::make_shared<UniformBuffer>(*m_Device, sizeof(UniformBufferObject));
     }
 
@@ -528,7 +527,6 @@ private:
 
         for (size_t i = 0; i < m_CommandBuffers.size(); i++) 
         {
-
             m_CommandBuffers[i]->Begin();
 
                 VkRenderPassBeginInfo renderPassInfo{};
