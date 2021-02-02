@@ -23,5 +23,6 @@ namespace Eternity
             void UnmapMemory();
 
             operator VkBuffer() { return m_Buffer; }
+            operator VkBuffer() const { return m_Buffer; }
     };
 } // namespace Eternity

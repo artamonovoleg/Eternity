@@ -19,12 +19,13 @@ namespace Eternity
             CommandBuffer(const Device& device, const CommandPool& commandPool);
             ~CommandBuffer();
 
-            void Begin();
-            void Begin(VkCommandBufferBeginInfo* beginInfo);
+            void Begin() const;
+            void BeginSingleTime() const;
             void BeginRenderPass(const VkRenderPassBeginInfo* beginInfo, const VkSubpassContents& contents);
             void BindPipeline(VkPipelineBindPoint pipelineBindPoint, VkPipeline pipeline);
             void EndRenderPass();
-            // void End();
+
+            void EndSingleTime() const;
             void End() const;
 
             operator VkCommandBuffer() { return m_Buffer; }

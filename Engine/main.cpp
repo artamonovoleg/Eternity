@@ -465,7 +465,7 @@ private:
 
         m_VertexBuffer = std::make_shared<Eternity::Buffer>(*m_Device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-        copyBuffer(stagingBuffer, *m_VertexBuffer, bufferSize);
+        m_CommandPool->CopyBuffer(stagingBuffer, *m_VertexBuffer, bufferSize);
     }
 
     void createIndexBuffer(const void* indicesData, uint32_t size) 
@@ -481,7 +481,7 @@ private:
 
         m_IndexBuffer = std::make_shared<Eternity::Buffer>(*m_Device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
         
-        copyBuffer(stagingBuffer, *m_IndexBuffer, bufferSize);
+        m_CommandPool->CopyBuffer(stagingBuffer, *m_IndexBuffer, bufferSize);
     }
 
     void createUniformBuffers() 
@@ -584,17 +584,6 @@ private:
         }
 
         vkBindBufferMemory(*m_Device, buffer, bufferMemory, 0);
-    }
-
-    void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
-
-        CommandBuffer buffer = m_CommandPool->BeginSingleTimeCommands();
-
-        VkBufferCopy copyRegion{};
-        copyRegion.size = size;
-        vkCmdCopyBuffer(buffer, srcBuffer, dstBuffer, 1, &copyRegion);
-
-        m_CommandPool->EndSingleTimeCommands(buffer);
     }
 
     void createCommandBuffers() {

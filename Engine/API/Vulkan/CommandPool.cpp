@@ -1,6 +1,7 @@
 #include "CommandPool.hpp"
 #include "Device.hpp"
 #include "PhysicalDevice.hpp"
+#include "Buffer.hpp"
 #include "CommandBuffer.hpp"
 #include "VkCheck.hpp"
 #include "Base.hpp"
@@ -24,31 +25,28 @@ namespace Eternity
         ET_TRACE("Command pool destroyed");
     }
 
-    CommandBuffer  CommandPool::BeginSingleTimeCommands() const
+    CommandBuffer CommandPool::BeginSingleTimeCommands() const
     {
-        VkCommandBufferBeginInfo beginInfo{};
-        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
         CommandBuffer buffer(m_Device, *this);
-        buffer.Begin(&beginInfo);
+        buffer.BeginSingleTime();
 
         return buffer;
     }
 
     void CommandPool::EndSingleTimeCommands(const CommandBuffer& buffer) const
     {
-        buffer.End();
-
-        VkSubmitInfo submitInfo{};
-        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        submitInfo.commandBufferCount = 1;
-        const VkCommandBuffer& cmdBuff = buffer;
-        submitInfo.pCommandBuffers = &cmdBuff;
-
-        vkQueueSubmit(m_Device.GetQueue(QueueType::Graphics), 1, &submitInfo, VK_NULL_HANDLE);
-        vkQueueWaitIdle(m_Device.GetQueue(QueueType::Graphics));
-
-        // vkFreeCommandBuffers(*m_Device, *m_CommandPool, 1, &commandBuffer);
+        buffer.EndSingleTime();
     }
+
+    void CommandPool::CopyBuffer(const Buffer& srcBuffer, Buffer& dstBuffer, VkDeviceSize size)
+    {
+        CommandBuffer buffer = BeginSingleTimeCommands();
+
+        VkBufferCopy copyRegion{};
+        copyRegion.size = size;
+        vkCmdCopyBuffer(buffer, srcBuffer, dstBuffer, 1, &copyRegion);
+
+        EndSingleTimeCommands(buffer);
+    }
+
 } // namespace Eternity

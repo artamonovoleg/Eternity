@@ -1,5 +1,6 @@
 #include "CommandBuffer.hpp"
 #include "Device.hpp"
+#include "PhysicalDevice.hpp"
 #include "CommandPool.hpp"
 #include "VkCheck.hpp"
 #include "Base.hpp"
@@ -25,16 +26,20 @@ namespace Eternity
         ET_TRACE("Free command buffer");
     }
 
-    void CommandBuffer::Begin()
+    void CommandBuffer::Begin() const
     {
         VkCommandBufferBeginInfo beginInfo{};
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         VkCheck(vkBeginCommandBuffer(m_Buffer, &beginInfo));
     }
 
-    void CommandBuffer::Begin(VkCommandBufferBeginInfo* beginInfo)
+    void CommandBuffer::BeginSingleTime() const
     {
-        VkCheck(vkBeginCommandBuffer(m_Buffer, beginInfo));
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+        VkCheck(vkBeginCommandBuffer(m_Buffer, &beginInfo));
     }
 
     void CommandBuffer::BeginRenderPass(const VkRenderPassBeginInfo* beginInfo, const VkSubpassContents& contents)
@@ -50,6 +55,19 @@ namespace Eternity
     void CommandBuffer::EndRenderPass()
     {
         vkCmdEndRenderPass(m_Buffer);
+    }
+
+    void CommandBuffer::EndSingleTime() const
+    {
+        vkEndCommandBuffer(m_Buffer);
+                
+        VkSubmitInfo submitInfo{};
+        submitInfo.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.commandBufferCount   = 1;
+        submitInfo.pCommandBuffers      = &m_Buffer;
+
+        vkQueueSubmit(m_Device.GetQueue(QueueType::Graphics), 1, &submitInfo, VK_NULL_HANDLE);
+        vkQueueWaitIdle(m_Device.GetQueue(QueueType::Graphics));
     }
 
     void CommandBuffer::End() const
