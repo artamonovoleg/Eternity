@@ -400,52 +400,58 @@ private:
 
     void LoadModel() 
     {
-        tinyobj::attrib_t attrib;
-        std::vector<tinyobj::shape_t> shapes;
-        std::vector<tinyobj::material_t> materials;
-        std::string warn, err;
+        static bool once = true;
 
-        if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, MODEL_PATH.c_str())) 
+        if (once)
         {
-            throw std::runtime_error(warn + err);
-        }
+            tinyobj::attrib_t attrib;
+            std::vector<tinyobj::shape_t> shapes;
+            std::vector<tinyobj::material_t> materials;
+            std::string warn, err;
 
-        std::unordered_map<Vertex, uint32_t> uniqueVertices{};
-
-        for (const auto& shape : shapes) {
-            for (const auto& index : shape.mesh.indices) {
-                Vertex vertex{};
-
-                vertex.pos = {
-                    attrib.vertices[3 * index.vertex_index + 0],
-                    attrib.vertices[3 * index.vertex_index + 1],
-                    attrib.vertices[3 * index.vertex_index + 2]
-                };
-
-                vertex.texCoord = {
-                    attrib.texcoords[2 * index.texcoord_index + 0],
-                    1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
-                };
-
-                if (uniqueVertices.count(vertex) == 0) 
-                {
-                    uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
-                    vertices.push_back(vertex);
-                }
-
-                indices.push_back(uniqueVertices[vertex]);
+            if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, MODEL_PATH.c_str())) 
+            {
+                throw std::runtime_error(warn + err);
             }
+
+            std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+
+            for (const auto& shape : shapes) {
+                for (const auto& index : shape.mesh.indices) {
+                    Vertex vertex{};
+
+                    vertex.pos = {
+                        attrib.vertices[3 * index.vertex_index + 0],
+                        attrib.vertices[3 * index.vertex_index + 1],
+                        attrib.vertices[3 * index.vertex_index + 2]
+                    };
+
+                    vertex.texCoord = {
+                        attrib.texcoords[2 * index.texcoord_index + 0],
+                        1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
+                    };
+
+                    if (uniqueVertices.count(vertex) == 0) 
+                    {
+                        uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
+                        vertices.push_back(vertex);
+                    }
+
+                    indices.push_back(uniqueVertices[vertex]);
+                }
+            }
+            once = false;
         }
 
-        m_Renderables.resize(2);
-        m_Renderables[0].m_VertexBuffer = CreateVertexBuffer(*m_CommandPool, vertices.data(), sizeof(vertices[0]) * vertices.size());
-        m_Renderables[0].m_IndexBuffer  = CreateIndexBuffer(*m_CommandPool, indices.data(), sizeof(indices[0]) * indices.size());
+        m_Renderables.resize(m_Renderables.size() + 1);
+        m_Renderables.back().m_VertexBuffer = CreateVertexBuffer(*m_CommandPool, vertices.data(), sizeof(vertices[0]) * vertices.size());
+        m_Renderables.back().m_IndexBuffer  = CreateIndexBuffer(*m_CommandPool, indices.data(), sizeof(indices[0]) * indices.size());
 
         for (auto& i : vertices)
             i.pos += glm::vec3(0.0f, 1.0f, 0.0f);
         
-        m_Renderables[1].m_VertexBuffer = CreateVertexBuffer(*m_CommandPool, vertices.data(), sizeof(vertices[0]) * vertices.size());
-        m_Renderables[1].m_IndexBuffer  = CreateIndexBuffer(*m_CommandPool, indices.data(), sizeof(indices[0]) * indices.size());
+        // m_Renderables[1].m_VertexBuffer = CreateVertexBuffer(*m_CommandPool, vertices.data(), sizeof(vertices[0]) * vertices.size());
+        // m_Renderables[1].m_IndexBuffer  = CreateIndexBuffer(*m_CommandPool, indices.data(), sizeof(indices[0]) * indices.size());
     }
 
     void CreateUniformBuffers() 
@@ -615,7 +621,16 @@ private:
         if (Input::GetKeyDown(Key::A))
         {
             m_Renderables.pop_back();
+            for (auto& i : vertices)
+                i.pos -= glm::vec3(0.0f, 1.0f, 0.0f);
             m_Device->WaitIdle();
+            CreateCommandBuffers();
+        }
+        else
+        if (Input::GetKeyDown(Key::D))
+        {
+            m_Device->WaitIdle();
+            LoadModel();
             CreateCommandBuffers();
         }
 
