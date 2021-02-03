@@ -110,6 +110,18 @@ struct UniformBufferObject
 
 using namespace Eternity;
 
+class Renderable
+{
+    public:
+        std::vector<Vertex>                             vertices;
+        std::vector<uint32_t>                           indices;
+
+        std::shared_ptr<Buffer>                         m_VertexBuffer;
+        std::shared_ptr<Buffer>                         m_IndexBuffer;
+
+        std::vector<std::shared_ptr<UniformBuffer>>     m_UniformBuffers;
+};
+
 class VulkanApp 
 {
 public:
@@ -161,9 +173,7 @@ private:
     std::vector<Vertex>                             vertices;
     std::vector<uint32_t>                           indices;
 
-    std::shared_ptr<Buffer>                         m_VertexBuffer;
-    std::shared_ptr<Buffer>                         m_IndexBuffer;
-
+    std::vector<Renderable>                         m_Renderables;
     std::vector<std::shared_ptr<UniformBuffer>>     m_UniformBuffers;
 
     VkDescriptorPool descriptorPool;
@@ -188,25 +198,29 @@ private:
         m_Swapchain         = std::make_shared<Swapchain>(ChooseSwapExtent(), *m_Device);
         
         m_DepthImage        = std::make_shared<DepthImage>(*m_Device, m_Swapchain->GetExtent());
+
         CreateRenderPass();
 
         m_Framebuffers      = std::make_shared<Framebuffers>(*m_Swapchain, *m_RenderPass, *m_DepthImage);
         m_CommandPool       = std::make_shared<CommandPool>(*m_Device);
+
+        CreateDescriptorSetLayout();
+
+        m_TextureImage = std::make_shared<Image2D>(*m_CommandPool, TEXTURE_PATH);
+
+        CreateSyncObjects();
     }
 
     void initVulkan() 
     {
-        CreateDescriptorSetLayout();
         createGraphicsPipeline();
-        m_TextureImage = std::make_shared<Image2D>(*m_CommandPool, TEXTURE_PATH);
+        
         LoadModel();
-        m_VertexBuffer = CreateVertexBuffer(*m_CommandPool, vertices.data(), sizeof(vertices[0]) * vertices.size());
-        m_IndexBuffer = CreateIndexBuffer(*m_CommandPool, indices.data(), sizeof(indices[0]) * indices.size());
         CreateUniformBuffers();
+        
         createDescriptorPool();
         createDescriptorSets();
         CreateCommandBuffers();
-        createSyncObjects();
     }
 
     void mainLoop() 
@@ -422,6 +436,16 @@ private:
                 indices.push_back(uniqueVertices[vertex]);
             }
         }
+
+        m_Renderables.resize(2);
+        m_Renderables[0].m_VertexBuffer = CreateVertexBuffer(*m_CommandPool, vertices.data(), sizeof(vertices[0]) * vertices.size());
+        m_Renderables[0].m_IndexBuffer  = CreateIndexBuffer(*m_CommandPool, indices.data(), sizeof(indices[0]) * indices.size());
+
+        for (auto& i : vertices)
+            i.pos += glm::vec3(0.0f, 1.0f, 0.0f);
+        
+        m_Renderables[1].m_VertexBuffer = CreateVertexBuffer(*m_CommandPool, vertices.data(), sizeof(vertices[0]) * vertices.size());
+        m_Renderables[1].m_IndexBuffer  = CreateIndexBuffer(*m_CommandPool, indices.data(), sizeof(indices[0]) * indices.size());
     }
 
     void CreateUniformBuffers() 
@@ -497,8 +521,8 @@ private:
         }
     }
 
-    void CreateCommandBuffers() {
-
+    void CreateCommandBuffers() 
+    {
         m_CommandBuffers.resize(m_Framebuffers->GetBuffersCount());
         for (int i = 0; i < m_Framebuffers->GetBuffersCount(); i++)
             m_CommandBuffers[i] = std::make_shared<CommandBuffer>(*m_Device, *m_CommandPool);
@@ -524,23 +548,26 @@ private:
                 m_CommandBuffers[i]->BeginRenderPass(&renderPassInfo,  VK_SUBPASS_CONTENTS_INLINE);
                     m_CommandBuffers[i]->BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
-                    VkBuffer vertexBuffers[] = { *m_VertexBuffer };
-                    VkDeviceSize offsets[] = {0};
+                    for (const auto& renderable : m_Renderables)
+                    {
+                        VkBuffer vertexBuffers[] = { *renderable.m_VertexBuffer };
+                        VkDeviceSize offsets[] = {0};
 
-                    vkCmdBindVertexBuffers(*m_CommandBuffers[i], 0, 1, vertexBuffers, offsets);
+                        vkCmdBindVertexBuffers(*m_CommandBuffers[i], 0, 1, vertexBuffers, offsets);
 
-                    vkCmdBindIndexBuffer(*m_CommandBuffers[i], *m_IndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+                        vkCmdBindIndexBuffer(*m_CommandBuffers[i], *renderable.m_IndexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
-                    vkCmdBindDescriptorSets(*m_CommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[i], 0, nullptr);
+                        vkCmdBindDescriptorSets(*m_CommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[i], 0, nullptr);
 
-                    vkCmdDrawIndexed(*m_CommandBuffers[i], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
-                    
+                        vkCmdDrawIndexed(*m_CommandBuffers[i], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+                    }
                 m_CommandBuffers[i]->EndRenderPass();
             m_CommandBuffers[i]->End();
         }
     }
 
-    void createSyncObjects() {
+    void CreateSyncObjects() 
+    {
         imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
         renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
         inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
@@ -553,10 +580,12 @@ private:
         fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
         fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) 
+        {
             if (vkCreateSemaphore(*m_Device, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
                 vkCreateSemaphore(*m_Device, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
-                vkCreateFence(*m_Device, &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS) {
+                vkCreateFence(*m_Device, &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS) 
+            {
                 throw std::runtime_error("failed to create synchronization objects for a frame!");
             }
         }
@@ -582,6 +611,12 @@ private:
     }
 
     void drawFrame() {
+
+        if (Input::GetKeyDown(Key::A))
+        {
+            m_Renderables.pop_back();
+            recreateSwapChain();
+        }
 
         VkResult result = m_Swapchain->AcquireNextImage(imageAvailableSemaphores[currentFrame], inFlightFences[currentFrame]);
 
