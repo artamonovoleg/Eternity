@@ -7,6 +7,7 @@
 namespace Eternity
 {
     class CommandPool;
+
     class Image2D : public Image
     {
         private:
@@ -28,5 +29,7 @@ namespace Eternity
             ~Image2D();
 
             const VkSampler& GetSampler() const { return m_Sampler; };
+
+            static VkDescriptorSetLayoutBinding GetDescriptorSetLayout(uint32_t binding, uint32_t count);
     };
 } // namespace Eternity

@@ -44,6 +44,7 @@
 #include "UniformBuffer.hpp"
 #include "CommandBuffer.hpp"
 #include "Shader.hpp"
+#include "DescriptorSetLayout.hpp"
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -141,24 +142,25 @@ private:
     /// Rewrited code
     VkExtent2D ChooseSwapExtent();
 
-    std::shared_ptr<Eternity::Instance>         m_Instance;
-    std::shared_ptr<Eternity::Surface>          m_Surface;
-    std::shared_ptr<Eternity::PhysicalDevice>   m_PhysicalDevice;
-    std::shared_ptr<Eternity::Device>           m_Device;
-    std::shared_ptr<Eternity::Swapchain>        m_Swapchain;
+    std::shared_ptr<Eternity::Instance>             m_Instance;
+    std::shared_ptr<Eternity::Surface>              m_Surface;
+    std::shared_ptr<Eternity::PhysicalDevice>       m_PhysicalDevice;
+    std::shared_ptr<Eternity::Device>               m_Device;
+    std::shared_ptr<Eternity::Swapchain>            m_Swapchain;
 
-    std::shared_ptr<Eternity::DepthImage>       m_DepthImage;
+    std::shared_ptr<Eternity::DepthImage>           m_DepthImage;
 
-    std::shared_ptr<Eternity::RenderPass>       m_RenderPass;
+    std::shared_ptr<Eternity::RenderPass>           m_RenderPass;
 
-    std::shared_ptr<Eternity::Framebuffers>     m_Framebuffers;
+    std::shared_ptr<Eternity::Framebuffers>         m_Framebuffers;
 
-    std::shared_ptr<Eternity::CommandPool>      m_CommandPool;
+    std::shared_ptr<Eternity::CommandPool>          m_CommandPool;
 
-    std::shared_ptr<Eternity::Image2D>          m_TextureImage;
+    std::shared_ptr<Eternity::Image2D>              m_TextureImage;
+    
+    std::shared_ptr<Eternity::DescriptorSetLayout>  m_DescriptorSetLayout;
     ///
 
-    VkDescriptorSetLayout   descriptorSetLayout;
     VkPipelineLayout        pipelineLayout;
     VkPipeline              graphicsPipeline;
 
@@ -200,7 +202,7 @@ private:
 
     void initVulkan() 
     {
-        createDescriptorSetLayout();
+        CreateDescriptorSetLayout();
         createGraphicsPipeline();
         m_TextureImage = std::make_shared<Eternity::Image2D>(*m_CommandPool, TEXTURE_PATH);
         LoadModel();
@@ -233,8 +235,6 @@ private:
 
     void cleanup() {
         cleanupSwapChain();
-
-        vkDestroyDescriptorSetLayout(*m_Device, descriptorSetLayout, nullptr);
 
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
@@ -271,30 +271,13 @@ private:
         m_RenderPass = std::make_shared<Eternity::RenderPass>(*m_Device, std::vector{ colorAttachment }, depthAttachment);
     }
 
-    void createDescriptorSetLayout() {
-        VkDescriptorSetLayoutBinding uboLayoutBinding{};
-        uboLayoutBinding.binding = 0;
-        uboLayoutBinding.descriptorCount = 1;
-        uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        uboLayoutBinding.pImmutableSamplers = nullptr;
-        uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    void CreateDescriptorSetLayout() 
+    {
+        VkDescriptorSetLayoutBinding uboLayoutBinding       = UniformBuffer::GetDescriptorSetLayout(0, 1);
+        VkDescriptorSetLayoutBinding samplerLayoutBinding   = Image2D::GetDescriptorSetLayout(1, 1);
 
-        VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-        samplerLayoutBinding.binding = 1;
-        samplerLayoutBinding.descriptorCount = 1;
-        samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        samplerLayoutBinding.pImmutableSamplers = nullptr;
-        samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-        std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding };
-        VkDescriptorSetLayoutCreateInfo layoutInfo{};
-        layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-        layoutInfo.pBindings = bindings.data();
-
-        if (vkCreateDescriptorSetLayout(*m_Device, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create descriptor set layout!");
-        }
+        std::vector<VkDescriptorSetLayoutBinding> bindings = { uboLayoutBinding, samplerLayoutBinding };
+        m_DescriptorSetLayout = std::make_shared<Eternity::DescriptorSetLayout>(*m_Device, bindings);
     }
 
     void createGraphicsPipeline() {
@@ -380,7 +363,8 @@ private:
         VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
         pipelineLayoutInfo.setLayoutCount = 1;
-        pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
+        const VkDescriptorSetLayout& layout = *m_DescriptorSetLayout;
+        pipelineLayoutInfo.pSetLayouts = &layout;
 
         if (vkCreatePipelineLayout(*m_Device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) 
             throw std::runtime_error("failed to create pipeline layout!");
@@ -473,7 +457,7 @@ private:
     }
 
     void createDescriptorSets() {
-        std::vector<VkDescriptorSetLayout> layouts(m_Swapchain->GetImageCount(), descriptorSetLayout);
+        std::vector<VkDescriptorSetLayout> layouts(m_Swapchain->GetImageCount(), *m_DescriptorSetLayout);
         VkDescriptorSetAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
         allocInfo.descriptorPool = descriptorPool;
@@ -689,7 +673,6 @@ VkExtent2D VulkanApp::ChooseSwapExtent()
         return actualExtent;
     }
 }
-
 
 int main() 
 {

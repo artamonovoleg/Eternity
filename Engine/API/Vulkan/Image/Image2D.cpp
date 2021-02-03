@@ -143,4 +143,16 @@ namespace Eternity
         VkCheck(vkCreateSampler(m_Device, &samplerInfo, nullptr, &m_Sampler));
         ET_TRACE("Sampler created");
     }
+
+    VkDescriptorSetLayoutBinding Image2D::GetDescriptorSetLayout(uint32_t binding, uint32_t count)
+    {
+        VkDescriptorSetLayoutBinding samplerLayoutBinding{};
+        samplerLayoutBinding.binding            = binding;
+        samplerLayoutBinding.descriptorCount    = count;
+        samplerLayoutBinding.descriptorType     = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        samplerLayoutBinding.pImmutableSamplers = nullptr;
+        samplerLayoutBinding.stageFlags         = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+        return samplerLayoutBinding;
+    }
 } // namespace Eternity

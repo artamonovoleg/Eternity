@@ -11,4 +11,15 @@ namespace Eternity
         vkMapMemory(m_Device, m_Memory, 0, size, 0, data);
     }
 
+    VkDescriptorSetLayoutBinding UniformBuffer::GetDescriptorSetLayout(uint32_t binding, uint32_t count)
+    {
+        VkDescriptorSetLayoutBinding uboLayoutBinding{};
+        uboLayoutBinding.binding            = binding;
+        uboLayoutBinding.descriptorCount    = count;
+        uboLayoutBinding.descriptorType     = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        uboLayoutBinding.pImmutableSamplers = nullptr;
+        uboLayoutBinding.stageFlags         = VK_SHADER_STAGE_VERTEX_BIT;
+
+        return uboLayoutBinding;
+    }
 } // namespace Eternity
