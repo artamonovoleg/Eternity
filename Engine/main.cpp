@@ -124,7 +124,7 @@ public:
     VulkanApp()
     {
         // later delete this
-        Eternity::EventSystem::AddListener(EventType::WindowResizeEvent, [&](const Event& event)
+        EventSystem::AddListener(EventType::WindowResizeEvent, [&](const Event& event)
         {
             framebufferResized = true;
             int width = 0, height = 0;
@@ -142,76 +142,70 @@ private:
     /// Rewrited code
     VkExtent2D ChooseSwapExtent();
 
-    std::shared_ptr<Eternity::Instance>             m_Instance;
-    std::shared_ptr<Eternity::Surface>              m_Surface;
-    std::shared_ptr<Eternity::PhysicalDevice>       m_PhysicalDevice;
-    std::shared_ptr<Eternity::Device>               m_Device;
-    std::shared_ptr<Eternity::Swapchain>            m_Swapchain;
-
-    std::shared_ptr<Eternity::DepthImage>           m_DepthImage;
-
-    std::shared_ptr<Eternity::RenderPass>           m_RenderPass;
-
-    std::shared_ptr<Eternity::Framebuffers>         m_Framebuffers;
-
-    std::shared_ptr<Eternity::CommandPool>          m_CommandPool;
-
-    std::shared_ptr<Eternity::Image2D>              m_TextureImage;
-    
-    std::shared_ptr<Eternity::DescriptorSetLayout>  m_DescriptorSetLayout;
+    std::shared_ptr<Instance>                       m_Instance;
+    std::shared_ptr<Surface>                        m_Surface;
+    std::shared_ptr<PhysicalDevice>                 m_PhysicalDevice;
+    std::shared_ptr<Device>                         m_Device;
+    std::shared_ptr<Swapchain>                      m_Swapchain;
+    std::shared_ptr<DepthImage>                     m_DepthImage;
+    std::shared_ptr<RenderPass>                     m_RenderPass;
+    std::shared_ptr<Framebuffers>                   m_Framebuffers;
+    std::shared_ptr<CommandPool>                    m_CommandPool;
+    std::shared_ptr<Image2D>                        m_TextureImage;
+    std::shared_ptr<DescriptorSetLayout>            m_DescriptorSetLayout;
     ///
 
     VkPipelineLayout        pipelineLayout;
     VkPipeline              graphicsPipeline;
 
-    std::vector<Vertex> vertices;
-    std::vector<uint32_t> indices;
+    std::vector<Vertex>                             vertices;
+    std::vector<uint32_t>                           indices;
 
-    std::shared_ptr<Eternity::Buffer> m_VertexBuffer;
-    std::shared_ptr<Eternity::Buffer> m_IndexBuffer;
+    std::shared_ptr<Buffer>                         m_VertexBuffer;
+    std::shared_ptr<Buffer>                         m_IndexBuffer;
 
-    std::vector<std::shared_ptr<UniformBuffer>> m_UniformBuffers;
+    std::vector<std::shared_ptr<UniformBuffer>>     m_UniformBuffers;
 
     VkDescriptorPool descriptorPool;
     std::vector<VkDescriptorSet> descriptorSets;
 
-    std::vector<std::shared_ptr<Eternity::CommandBuffer>> m_CommandBuffers;
+    std::vector<std::shared_ptr<CommandBuffer>>     m_CommandBuffers;
 
-    std::vector<VkSemaphore> imageAvailableSemaphores;
-    std::vector<VkSemaphore> renderFinishedSemaphores;
-    std::vector<VkFence> inFlightFences;
-    std::vector<VkFence> imagesInFlight;
+    std::vector<VkSemaphore>    imageAvailableSemaphores;
+    std::vector<VkSemaphore>    renderFinishedSemaphores;
+    std::vector<VkFence>        inFlightFences;
+    std::vector<VkFence>        imagesInFlight;
     size_t currentFrame = 0;
 
     bool framebufferResized = false;
 
     void Prepare()
     {
-        m_Instance          = std::make_shared<Eternity::Instance>();
-        m_Surface           = std::make_shared<Eternity::Surface>(*m_Instance);
-        m_PhysicalDevice    = std::make_shared<Eternity::PhysicalDevice>(*m_Instance, *m_Surface);
-        m_Device            = std::make_shared<Eternity::Device>(*m_Instance, *m_PhysicalDevice);
-        m_Swapchain         = std::make_shared<Eternity::Swapchain>(ChooseSwapExtent(), *m_Device);
+        m_Instance          = std::make_shared<Instance>();
+        m_Surface           = std::make_shared<Surface>(*m_Instance);
+        m_PhysicalDevice    = std::make_shared<PhysicalDevice>(*m_Instance, *m_Surface);
+        m_Device            = std::make_shared<Device>(*m_Instance, *m_PhysicalDevice);
+        m_Swapchain         = std::make_shared<Swapchain>(ChooseSwapExtent(), *m_Device);
         
-        m_DepthImage        = std::make_shared<Eternity::DepthImage>(*m_Device, m_Swapchain->GetExtent());
+        m_DepthImage        = std::make_shared<DepthImage>(*m_Device, m_Swapchain->GetExtent());
         CreateRenderPass();
 
-        m_Framebuffers      = std::make_shared<Eternity::Framebuffers>(*m_Swapchain, *m_RenderPass, *m_DepthImage);
-        m_CommandPool       = std::make_shared<Eternity::CommandPool>(*m_Device);
+        m_Framebuffers      = std::make_shared<Framebuffers>(*m_Swapchain, *m_RenderPass, *m_DepthImage);
+        m_CommandPool       = std::make_shared<CommandPool>(*m_Device);
     }
 
     void initVulkan() 
     {
         CreateDescriptorSetLayout();
         createGraphicsPipeline();
-        m_TextureImage = std::make_shared<Eternity::Image2D>(*m_CommandPool, TEXTURE_PATH);
+        m_TextureImage = std::make_shared<Image2D>(*m_CommandPool, TEXTURE_PATH);
         LoadModel();
         m_VertexBuffer = CreateVertexBuffer(*m_CommandPool, vertices.data(), sizeof(vertices[0]) * vertices.size());
         m_IndexBuffer = CreateIndexBuffer(*m_CommandPool, indices.data(), sizeof(indices[0]) * indices.size());
         CreateUniformBuffers();
         createDescriptorPool();
         createDescriptorSets();
-        createCommandBuffers();
+        CreateCommandBuffers();
         createSyncObjects();
     }
 
@@ -219,7 +213,7 @@ private:
     {
         while (!Eternity::WindowShouldClose()) 
         {
-            Eternity::EventSystem::PollEvents();
+            EventSystem::PollEvents();
             drawFrame();
         }
 
@@ -252,15 +246,15 @@ private:
 
         m_Swapchain->Recreate(ChooseSwapExtent());
 
-        m_DepthImage = std::make_shared<Eternity::DepthImage>(*m_Device, m_Swapchain->GetExtent());
+        m_DepthImage    = std::make_shared<DepthImage>(*m_Device, m_Swapchain->GetExtent());
         CreateRenderPass();
-        m_Framebuffers = std::make_shared<Eternity::Framebuffers>(*m_Swapchain, *m_RenderPass, *m_DepthImage);
+        m_Framebuffers  = std::make_shared<Framebuffers>(*m_Swapchain, *m_RenderPass, *m_DepthImage);
 
         createGraphicsPipeline();
         CreateUniformBuffers();
         createDescriptorPool();
         createDescriptorSets();
-        createCommandBuffers();
+        CreateCommandBuffers();
     }
 
     void CreateRenderPass() 
@@ -268,7 +262,7 @@ private:
         Attachment colorAttachment(Attachment::Type::Color, 0, m_Swapchain->GetImageFormat());
         Attachment depthAttachment(Attachment::Type::Depth, 1, m_DepthImage->GetFormat());
 
-        m_RenderPass = std::make_shared<Eternity::RenderPass>(*m_Device, std::vector{ colorAttachment }, depthAttachment);
+        m_RenderPass = std::make_shared<RenderPass>(*m_Device, std::vector{ colorAttachment }, depthAttachment);
     }
 
     void CreateDescriptorSetLayout() 
@@ -277,7 +271,7 @@ private:
         VkDescriptorSetLayoutBinding samplerLayoutBinding   = Image2D::GetDescriptorSetLayout(1, 1);
 
         std::vector<VkDescriptorSetLayoutBinding> bindings = { uboLayoutBinding, samplerLayoutBinding };
-        m_DescriptorSetLayout = std::make_shared<Eternity::DescriptorSetLayout>(*m_Device, bindings);
+        m_DescriptorSetLayout = std::make_shared<DescriptorSetLayout>(*m_Device, bindings);
     }
 
     void createGraphicsPipeline() {
@@ -290,13 +284,13 @@ private:
         VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
         vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 
-        auto bindingDescription = Vertex::getBindingDescription();
-        auto attributeDescriptions = Vertex::getAttributeDescriptions();
+        auto bindingDescription     = Vertex::getBindingDescription();
+        auto attributeDescriptions  = Vertex::getAttributeDescriptions();
 
-        vertexInputInfo.vertexBindingDescriptionCount = 1;
+        vertexInputInfo.vertexBindingDescriptionCount   = 1;
         vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
-        vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
-        vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+        vertexInputInfo.pVertexBindingDescriptions      = &bindingDescription;
+        vertexInputInfo.pVertexAttributeDescriptions    = attributeDescriptions.data();
 
         VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
         inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -316,21 +310,21 @@ private:
         scissor.extent = m_Swapchain->GetExtent();
 
         VkPipelineViewportStateCreateInfo viewportState{};
-        viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-        viewportState.viewportCount = 1;
-        viewportState.pViewports = &viewport;
-        viewportState.scissorCount = 1;
-        viewportState.pScissors = &scissor;
+        viewportState.sType             = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+        viewportState.viewportCount     = 1;
+        viewportState.pViewports        = &viewport;
+        viewportState.scissorCount      = 1;
+        viewportState.pScissors         = &scissor;
 
         VkPipelineRasterizationStateCreateInfo rasterizer{};
-        rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-        rasterizer.depthClampEnable = VK_FALSE;
-        rasterizer.rasterizerDiscardEnable = VK_FALSE;
-        rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
-        rasterizer.lineWidth = 1.0f;
-        rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-        rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-        rasterizer.depthBiasEnable = VK_FALSE;
+        rasterizer.sType                    = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+        rasterizer.depthClampEnable         = VK_FALSE;
+        rasterizer.rasterizerDiscardEnable  = VK_FALSE;
+        rasterizer.polygonMode              = VK_POLYGON_MODE_FILL;
+        rasterizer.lineWidth                = 1.0f;
+        rasterizer.cullMode                 = VK_CULL_MODE_BACK_BIT;
+        rasterizer.frontFace                = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+        rasterizer.depthBiasEnable          = VK_FALSE;
 
         VkPipelineMultisampleStateCreateInfo multisampling{};
         multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
@@ -503,11 +497,11 @@ private:
         }
     }
 
-    void createCommandBuffers() {
+    void CreateCommandBuffers() {
 
         m_CommandBuffers.resize(m_Framebuffers->GetBuffersCount());
         for (int i = 0; i < m_Framebuffers->GetBuffersCount(); i++)
-            m_CommandBuffers[i] = std::make_shared<Eternity::CommandBuffer>(*m_Device, *m_CommandPool);
+            m_CommandBuffers[i] = std::make_shared<CommandBuffer>(*m_Device, *m_CommandPool);
 
         for (size_t i = 0; i < m_CommandBuffers.size(); i++) 
         {
