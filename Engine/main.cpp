@@ -312,12 +312,12 @@ private:
         inputAssembly.primitiveRestartEnable = VK_FALSE;
 
         VkViewport viewport{};
-        viewport.x = 0.0f;
-        viewport.y = 0.0f;
-        viewport.width = (float) m_Swapchain->GetExtent().width;
-        viewport.height = (float) m_Swapchain->GetExtent().height;
-        viewport.minDepth = 0.0f;
-        viewport.maxDepth = 1.0f;
+        viewport.x          = 0.0f;
+        viewport.y          = 0.0f;
+        viewport.width      = (float) m_Swapchain->GetExtent().width;
+        viewport.height     = (float) m_Swapchain->GetExtent().height;
+        viewport.minDepth   = 0.0f;
+        viewport.maxDepth   = 1.0f;
 
         VkRect2D scissor{};
         scissor.offset = {0, 0};
@@ -449,9 +449,6 @@ private:
 
         for (auto& i : vertices)
             i.pos += glm::vec3(0.0f, 1.0f, 0.0f);
-        
-        // m_Renderables[1].m_VertexBuffer = CreateVertexBuffer(*m_CommandPool, vertices.data(), sizeof(vertices[0]) * vertices.size());
-        // m_Renderables[1].m_IndexBuffer  = CreateIndexBuffer(*m_CommandPool, indices.data(), sizeof(indices[0]) * indices.size());
     }
 
     void CreateUniformBuffers() 
