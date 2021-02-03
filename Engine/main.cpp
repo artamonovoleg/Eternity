@@ -615,7 +615,8 @@ private:
         if (Input::GetKeyDown(Key::A))
         {
             m_Renderables.pop_back();
-            recreateSwapChain();
+            m_Device->WaitIdle();
+            CreateCommandBuffers();
         }
 
         VkResult result = m_Swapchain->AcquireNextImage(imageAvailableSemaphores[currentFrame], inFlightFences[currentFrame]);
