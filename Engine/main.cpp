@@ -617,10 +617,10 @@ private:
 
         if (Input::GetKeyDown(Key::A))
         {
+            m_Device->WaitIdle();
             m_Renderables.pop_back();
             for (auto& i : vertices)
                 i.pos -= glm::vec3(0.0f, 1.0f, 0.0f);
-            m_Device->WaitIdle();
             CreateCommandBuffers();
         }
         else
