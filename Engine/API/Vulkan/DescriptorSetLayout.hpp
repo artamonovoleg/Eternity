@@ -10,6 +10,7 @@ namespace Eternity
     {
         private:
             const Device&           m_Device;
+
             VkDescriptorSetLayout   m_Layout;
         public:
             DescriptorSetLayout(const Device& device, const std::vector<VkDescriptorSetLayoutBinding>& bindings);

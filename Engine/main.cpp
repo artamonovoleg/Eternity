@@ -45,6 +45,7 @@
 #include "CommandBuffer.hpp"
 #include "Shader.hpp"
 #include "DescriptorSetLayout.hpp"
+#include "DescriptorPool.hpp"
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -176,7 +177,7 @@ private:
     std::vector<Renderable>                         m_Renderables;
     std::vector<std::shared_ptr<UniformBuffer>>     m_UniformBuffers;
 
-    VkDescriptorPool descriptorPool;
+    std::shared_ptr<DescriptorPool>                 m_DescriptorPool;
     std::vector<VkDescriptorSet> descriptorSets;
 
     std::vector<std::shared_ptr<CommandBuffer>>     m_CommandBuffers;
@@ -218,7 +219,7 @@ private:
         LoadModel();
         CreateUniformBuffers();
         
-        createDescriptorPool();
+        CreateDescriptorPool();
         createDescriptorSets();
         CreateCommandBuffers();
     }
@@ -238,7 +239,6 @@ private:
     {
         vkDestroyPipeline(*m_Device, graphicsPipeline, nullptr);
         vkDestroyPipelineLayout(*m_Device, pipelineLayout, nullptr);
-        vkDestroyDescriptorPool(*m_Device, descriptorPool, nullptr);
     }
 
     void cleanup() {
@@ -266,7 +266,7 @@ private:
 
         createGraphicsPipeline();
         CreateUniformBuffers();
-        createDescriptorPool();
+        CreateDescriptorPool();
         createDescriptorSets();
         CreateCommandBuffers();
     }
@@ -459,29 +459,17 @@ private:
             m_UniformBuffers[i] = std::make_shared<UniformBuffer>(*m_Device, sizeof(UniformBufferObject));
     }
 
-    void createDescriptorPool() {
-        std::array<VkDescriptorPoolSize, 2> poolSizes{};
-        poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        poolSizes[0].descriptorCount = static_cast<uint32_t>(m_Swapchain->GetImageCount());
-        poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        poolSizes[1].descriptorCount = static_cast<uint32_t>(m_Swapchain->GetImageCount());
-
-        VkDescriptorPoolCreateInfo poolInfo{};
-        poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-        poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
-        poolInfo.pPoolSizes = poolSizes.data();
-        poolInfo.maxSets = static_cast<uint32_t>(m_Swapchain->GetImageCount());
-
-        if (vkCreateDescriptorPool(*m_Device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create descriptor pool!");
-        }
+    void CreateDescriptorPool() 
+    {
+        const std::vector<DescriptorType> descriptorTypes { DescriptorType::Uniform, DescriptorType::ImageSampler };
+        m_DescriptorPool = std::make_shared<DescriptorPool>(*m_Swapchain, descriptorTypes);
     }
 
     void createDescriptorSets() {
         std::vector<VkDescriptorSetLayout> layouts(m_Swapchain->GetImageCount(), *m_DescriptorSetLayout);
         VkDescriptorSetAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        allocInfo.descriptorPool = descriptorPool;
+        allocInfo.descriptorPool = *m_DescriptorPool;
         allocInfo.descriptorSetCount = static_cast<uint32_t>(m_Swapchain->GetImageCount());
         allocInfo.pSetLayouts = layouts.data();
 
