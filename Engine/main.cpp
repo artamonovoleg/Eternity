@@ -47,6 +47,7 @@
 #include "Descriptors.hpp"
 #include "DescriptorPool.hpp"
 #include "DescriptorSets.hpp"
+#include "GraphicsPipelineLayout.hpp"
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -61,24 +62,26 @@ struct Vertex
     glm::vec3 pos;
     glm::vec2 texCoord;
 
-    static VkVertexInputBindingDescription getBindingDescription() {
+    static std::vector<VkVertexInputBindingDescription> getBindingDescription() 
+    {
         VkVertexInputBindingDescription bindingDescription{};
         bindingDescription.binding = 0;
         bindingDescription.stride = sizeof(Vertex);
         bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-        return bindingDescription;
+        return std::vector<VkVertexInputBindingDescription>{bindingDescription};
     }
 
-    static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions() 
+    static std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions() 
     {
-        std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
+        std::vector<VkVertexInputAttributeDescription> attributeDescriptions(2);
 
+        attributeDescriptions[0] = {};
         attributeDescriptions[0].binding = 0;
         attributeDescriptions[0].location = 0;
         attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
         attributeDescriptions[0].offset = offsetof(Vertex, pos);
-
+        attributeDescriptions[1] = {};
         attributeDescriptions[1].binding = 0;
         attributeDescriptions[1].location = 1;
         attributeDescriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
@@ -295,16 +298,10 @@ private:
         
         ShaderStage shaderStage (vertShader, fragShader);
 
-        VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
-        vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+        auto bindingDescriptions   = Vertex::getBindingDescription();
+        auto attributeDescriptions = Vertex::getAttributeDescriptions();
 
-        auto bindingDescription     = Vertex::getBindingDescription();
-        auto attributeDescriptions  = Vertex::getAttributeDescriptions();
-
-        vertexInputInfo.vertexBindingDescriptionCount   = 1;
-        vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
-        vertexInputInfo.pVertexBindingDescriptions      = &bindingDescription;
-        vertexInputInfo.pVertexAttributeDescriptions    = attributeDescriptions.data();
+        VertexInput vertexInput(bindingDescriptions, attributeDescriptions);
 
         VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
         inputAssembly.sType     = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -381,7 +378,7 @@ private:
         pipelineInfo.sType                  = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
         pipelineInfo.stageCount             = shaderStage.GetStageCount();
         pipelineInfo.pStages                = shaderStage.GetStages();
-        pipelineInfo.pVertexInputState      = &vertexInputInfo;
+        pipelineInfo.pVertexInputState      = &vertexInput.vertexInputInfo;
         pipelineInfo.pInputAssemblyState    = &inputAssembly;
         pipelineInfo.pViewportState         = &viewportState;
         pipelineInfo.pRasterizationState    = &rasterizer;
