@@ -7,6 +7,7 @@
 namespace Eternity
 {
     class CommandPool;
+    class WriteDescriptorSet;
 
     class Image2D : public Image
     {
@@ -28,8 +29,8 @@ namespace Eternity
             Image2D(const CommandPool& commandPool, const std::string& filename);
             ~Image2D();
 
-            const VkSampler& GetSampler() const { return m_Sampler; };
-            std::pair<const VkDescriptorImageInfo, VkWriteDescriptorSet> GetWriteDescriptorSet(uint32_t binding, uint32_t count);
+            const VkSampler&    GetSampler() const { return m_Sampler; };
+            WriteDescriptorSet  GetWriteDescriptorSet(uint32_t binding, uint32_t count);
 
             static VkDescriptorSetLayoutBinding GetDescriptorSetLayout(uint32_t binding, uint32_t count);
     };

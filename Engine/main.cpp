@@ -44,8 +44,7 @@
 #include "UniformBuffer.hpp"
 #include "CommandBuffer.hpp"
 #include "Shader.hpp"
-#include "DescriptorSetLayout.hpp"
-#include "DescriptorPool.hpp"
+#include "Descriptors.hpp"
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -474,7 +473,8 @@ private:
         allocInfo.pSetLayouts = layouts.data();
 
         descriptorSets.resize(m_Swapchain->GetImageCount());
-        if (vkAllocateDescriptorSets(*m_Device, &allocInfo, descriptorSets.data()) != VK_SUCCESS) {
+        if (vkAllocateDescriptorSets(*m_Device, &allocInfo, descriptorSets.data()) != VK_SUCCESS) 
+        {
             throw std::runtime_error("failed to allocate descriptor sets!");
         }
 
@@ -482,15 +482,11 @@ private:
         {
             std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
 
-            auto [bufferInfo, bufferWrites] = m_UniformBuffers[i]->GetWriteDescriptorSet(0, 1, sizeof(UniformBufferObject));
-            descriptorWrites[0]             = bufferWrites;
-            descriptorWrites[0].dstSet      = descriptorSets[i];
-            descriptorWrites[0].pBufferInfo = &bufferInfo;
+            descriptorWrites[0]         = m_UniformBuffers[i]->GetWriteDescriptorSet(0, 1, sizeof(UniformBufferObject));
+            descriptorWrites[0].dstSet  = descriptorSets[i];
 
-            auto [imageInfo, imageWrites] = m_TextureImage->GetWriteDescriptorSet(1, 1);
-            descriptorWrites[1]             = imageWrites;
-            descriptorWrites[1].dstSet      = descriptorSets[i];
-            descriptorWrites[1].pImageInfo  = &imageInfo;
+            descriptorWrites[1]         = m_TextureImage->GetWriteDescriptorSet(1, 1);
+            descriptorWrites[1].dstSet  = descriptorSets[i];
 
             vkUpdateDescriptorSets(*m_Device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
         }

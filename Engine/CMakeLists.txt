@@ -40,9 +40,8 @@ add_executable(Eternity     main.cpp
                             ./API/Vulkan/Buffer/Buffer.cpp
                             ./API/Vulkan/Buffer/UniformBuffer.cpp
                             ./API/Vulkan/Buffer/CommandBuffer.cpp
-                            ./API/Vulkan/DescriptorSetLayout.cpp
+                            ./API/Vulkan/Descriptors.cpp
                             ./API/Vulkan/Shader.cpp
-                            ./API/Vulkan/DescriptorPool.cpp
                             )
                             
 target_link_libraries(Eternity vulkan glfw glm tinyobjloader stb_image)

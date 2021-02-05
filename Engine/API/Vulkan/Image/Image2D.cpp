@@ -5,6 +5,7 @@
 #include "CommandBuffer.hpp"
 #include "Device.hpp"
 #include "PhysicalDevice.hpp"
+#include "Descriptors.hpp"
 #include "VkCheck.hpp"
 #include "Base.hpp"
 
@@ -144,7 +145,7 @@ namespace Eternity
         ET_TRACE("Sampler created");
     }
 
-    std::pair<const VkDescriptorImageInfo, VkWriteDescriptorSet> Image2D::GetWriteDescriptorSet(uint32_t binding, uint32_t count)
+    WriteDescriptorSet Image2D::GetWriteDescriptorSet(uint32_t binding, uint32_t count)
     {
         VkDescriptorImageInfo imageInfo{};
         imageInfo.imageLayout   = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -158,7 +159,7 @@ namespace Eternity
         writeDescriptor.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         writeDescriptor.descriptorCount = count;
 
-        return std::make_pair(imageInfo, writeDescriptor);
+        return WriteDescriptorSet(imageInfo, writeDescriptor);
     }
 
     VkDescriptorSetLayoutBinding Image2D::GetDescriptorSetLayout(uint32_t binding, uint32_t count)
