@@ -53,6 +53,7 @@ namespace Eternity
                 m_Stages.push_back(info);
             }
             
+            uint32_t GetStageCount() const { return static_cast<uint32_t>(m_Stages.size()); }
             const VkPipelineShaderStageCreateInfo* GetStages() const { return m_Stages.data(); }
     };
 } // namespace Eternity
