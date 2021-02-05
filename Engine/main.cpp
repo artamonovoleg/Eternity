@@ -45,6 +45,7 @@
 #include "CommandBuffer.hpp"
 #include "Shader.hpp"
 #include "Descriptors.hpp"
+#include "DescriptorSets.hpp"
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -177,8 +178,7 @@ private:
     std::vector<std::shared_ptr<UniformBuffer>>     m_UniformBuffers;
 
     std::shared_ptr<DescriptorPool>                 m_DescriptorPool;
-    std::vector<VkDescriptorSet> descriptorSets;
-
+    std::shared_ptr<DescriptorSets>                 m_DescriptorSets;
     std::vector<std::shared_ptr<CommandBuffer>>     m_CommandBuffers;
 
     std::vector<VkSemaphore>    imageAvailableSemaphores;
@@ -219,7 +219,7 @@ private:
         CreateUniformBuffers();
         
         CreateDescriptorPool();
-        createDescriptorSets();
+        CreateDescriptorSets();
         CreateCommandBuffers();
     }
 
@@ -266,7 +266,7 @@ private:
         createGraphicsPipeline();
         CreateUniformBuffers();
         CreateDescriptorPool();
-        createDescriptorSets();
+        CreateDescriptorSets();
         CreateCommandBuffers();
     }
 
@@ -464,31 +464,21 @@ private:
         m_DescriptorPool = std::make_shared<DescriptorPool>(*m_Swapchain, descriptorTypes);
     }
 
-    void createDescriptorSets() {
-        std::vector<VkDescriptorSetLayout> layouts(m_Swapchain->GetImageCount(), *m_DescriptorSetLayout);
-        VkDescriptorSetAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        allocInfo.descriptorPool = *m_DescriptorPool;
-        allocInfo.descriptorSetCount = static_cast<uint32_t>(m_Swapchain->GetImageCount());
-        allocInfo.pSetLayouts = layouts.data();
-
-        descriptorSets.resize(m_Swapchain->GetImageCount());
-        if (vkAllocateDescriptorSets(*m_Device, &allocInfo, descriptorSets.data()) != VK_SUCCESS) 
-        {
-            throw std::runtime_error("failed to allocate descriptor sets!");
-        }
+    void CreateDescriptorSets() 
+    {
+        m_DescriptorSets = std::make_shared<DescriptorSets>(*m_Swapchain, *m_DescriptorSetLayout, *m_DescriptorPool);
 
         for (size_t i = 0; i < m_Swapchain->GetImageCount(); i++) 
         {
             std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
 
             descriptorWrites[0]         = m_UniformBuffers[i]->GetWriteDescriptorSet(0, 1, sizeof(UniformBufferObject));
-            descriptorWrites[0].dstSet  = descriptorSets[i];
+            descriptorWrites[0].dstSet  = m_DescriptorSets->GetSet(i);
 
             descriptorWrites[1]         = m_TextureImage->GetWriteDescriptorSet(1, 1);
-            descriptorWrites[1].dstSet  = descriptorSets[i];
+            descriptorWrites[1].dstSet  = m_DescriptorSets->GetSet(i);
 
-            vkUpdateDescriptorSets(*m_Device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+            m_DescriptorSets->UpdateSets(static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data());
         }
     }
 
@@ -522,13 +512,13 @@ private:
                     for (const auto& renderable : m_Renderables)
                     {
                         VkBuffer vertexBuffers[] = { *renderable.m_VertexBuffer };
-                        VkDeviceSize offsets[] = {0};
+                        VkDeviceSize offsets[] = { 0 };
 
                         vkCmdBindVertexBuffers(*m_CommandBuffers[i], 0, 1, vertexBuffers, offsets);
 
                         vkCmdBindIndexBuffer(*m_CommandBuffers[i], *renderable.m_IndexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
-                        vkCmdBindDescriptorSets(*m_CommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[i], 0, nullptr);
+                        vkCmdBindDescriptorSets(*m_CommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &m_DescriptorSets->GetSet(i), 0, nullptr);
 
                         vkCmdDrawIndexed(*m_CommandBuffers[i], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
                     }
