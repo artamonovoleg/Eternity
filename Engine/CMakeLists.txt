@@ -45,6 +45,7 @@ add_executable(Eternity     main.cpp
                             ./API/Vulkan/DescriptorSets.cpp
                             ./API/Vulkan/GraphicsPipelineLayout.cpp
                             ./API/Vulkan/Shader.cpp
+                            ./API/Vulkan/GraphicsPipeline.cpp
                             )
                             
 target_link_libraries(Eternity vulkan glfw glm tinyobjloader stb_image)

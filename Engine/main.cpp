@@ -48,6 +48,7 @@
 #include "DescriptorPool.hpp"
 #include "DescriptorSets.hpp"
 #include "GraphicsPipelineLayout.hpp"
+#include "GraphicsPipeline.hpp"
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -130,12 +131,12 @@ class Renderable
 class VulkanApp 
 {
 public:
-    void run() 
+    void Run() 
     {
         Prepare();
         initVulkan();
         mainLoop();
-        cleanup();
+        Cleanup();
     }
 
     VulkanApp()
@@ -155,8 +156,6 @@ public:
     }
 
 private:
-
-    /// Rewrited code
     VkExtent2D ChooseSwapExtent();
 
     std::shared_ptr<Instance>                       m_Instance;
@@ -170,11 +169,9 @@ private:
     std::shared_ptr<CommandPool>                    m_CommandPool;
     std::shared_ptr<Image2D>                        m_TextureImage;
     std::shared_ptr<DescriptorSetLayout>            m_DescriptorSetLayout;
-    ///
 
     std::shared_ptr<GraphicsPipelineLayout>         m_PipelineLayout;
-    VkPipeline              graphicsPipeline;
-
+    std::shared_ptr<GraphicsPipeline>               m_GraphicsPipeline;
     std::vector<Vertex>                             vertices;
     std::vector<uint32_t>                           indices;
 
@@ -217,7 +214,7 @@ private:
 
     void initVulkan() 
     {
-        createGraphicsPipeline();
+        CreateGraphicsPipeline();
         
         LoadModel();
         CreateUniformBuffers();
@@ -238,14 +235,8 @@ private:
         m_Device->WaitIdle();
     }
 
-    void cleanupSwapChain() 
+    void Cleanup() 
     {
-        vkDestroyPipeline(*m_Device, graphicsPipeline, nullptr);
-    }
-
-    void cleanup() {
-        cleanupSwapChain();
-
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
             vkDestroySemaphore(*m_Device, renderFinishedSemaphores[i], nullptr);
@@ -254,11 +245,9 @@ private:
         }
     }
 
-    void recreateSwapChain() 
+    void RecreateSwapChain() 
     {
         m_Device->WaitIdle();
-
-        cleanupSwapChain();
 
         m_Swapchain->Recreate(ChooseSwapExtent());
 
@@ -266,7 +255,7 @@ private:
         CreateRenderPass();
         m_Framebuffers  = std::make_shared<Framebuffers>(*m_Swapchain, *m_RenderPass, *m_DepthImage);
 
-        createGraphicsPipeline();
+        CreateGraphicsPipeline();
         CreateUniformBuffers();
         CreateDescriptorPool();
         CreateDescriptorSets();
@@ -290,7 +279,7 @@ private:
         m_DescriptorSetLayout = std::make_shared<DescriptorSetLayout>(*m_Device, bindings);
     }
 
-    void createGraphicsPipeline() 
+    void CreateGraphicsPipeline() 
     {
         m_PipelineLayout = std::make_shared<GraphicsPipelineLayout>(*m_Device, *m_DescriptorSetLayout);
 
@@ -304,89 +293,7 @@ private:
 
         VertexInput vertexInput(bindingDescriptions, attributeDescriptions);
 
-        VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
-        inputAssembly.sType     = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-        inputAssembly.topology  = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-        inputAssembly.primitiveRestartEnable = VK_FALSE;
-
-        VkViewport viewport{};
-        viewport.x          = 0.0f;
-        viewport.y          = 0.0f;
-        viewport.width      = (float) m_Swapchain->GetExtent().width;
-        viewport.height     = (float) m_Swapchain->GetExtent().height;
-        viewport.minDepth   = 0.0f;
-        viewport.maxDepth   = 1.0f;
-
-        VkRect2D scissor{};
-        scissor.offset = {0, 0};
-        scissor.extent = m_Swapchain->GetExtent();
-
-        VkPipelineViewportStateCreateInfo viewportState{};
-        viewportState.sType             = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-        viewportState.viewportCount     = 1;
-        viewportState.pViewports        = &viewport;
-        viewportState.scissorCount      = 1;
-        viewportState.pScissors         = &scissor;
-
-        VkPipelineRasterizationStateCreateInfo rasterizer{};
-        rasterizer.sType                    = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-        rasterizer.depthClampEnable         = VK_FALSE;
-        rasterizer.rasterizerDiscardEnable  = VK_FALSE;
-        rasterizer.polygonMode              = VK_POLYGON_MODE_FILL;
-        rasterizer.lineWidth                = 1.0f;
-        rasterizer.cullMode                 = VK_CULL_MODE_BACK_BIT;
-        rasterizer.frontFace                = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-        rasterizer.depthBiasEnable          = VK_FALSE;
-
-        VkPipelineMultisampleStateCreateInfo multisampling{};
-        multisampling.sType                 = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-        multisampling.sampleShadingEnable   = VK_FALSE;
-        multisampling.rasterizationSamples  = VK_SAMPLE_COUNT_1_BIT;
-
-        VkPipelineDepthStencilStateCreateInfo depthStencil{};
-        depthStencil.sType                  = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-        depthStencil.depthTestEnable        = VK_TRUE;
-        depthStencil.depthWriteEnable       = VK_TRUE;
-        depthStencil.depthCompareOp         = VK_COMPARE_OP_LESS;
-        depthStencil.depthBoundsTestEnable  = VK_FALSE;
-        depthStencil.stencilTestEnable      = VK_FALSE;
-
-        VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-        colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-        colorBlendAttachment.blendEnable    = VK_FALSE;
-
-        VkPipelineColorBlendStateCreateInfo colorBlending{};
-        colorBlending.sType             = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-        colorBlending.logicOpEnable     = VK_FALSE;
-        colorBlending.logicOp           = VK_LOGIC_OP_COPY;
-        colorBlending.attachmentCount   = 1;
-        colorBlending.pAttachments      = &colorBlendAttachment;
-        colorBlending.blendConstants[0] = 0.0f;
-        colorBlending.blendConstants[1] = 0.0f;
-        colorBlending.blendConstants[2] = 0.0f;
-        colorBlending.blendConstants[3] = 0.0f;
-
-
-
-        VkGraphicsPipelineCreateInfo pipelineInfo{};
-        pipelineInfo.sType                  = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-        pipelineInfo.stageCount             = shaderStage.GetStageCount();
-        pipelineInfo.pStages                = shaderStage.GetStages();
-        pipelineInfo.pVertexInputState      = &vertexInput.vertexInputInfo;
-        pipelineInfo.pInputAssemblyState    = &inputAssembly;
-        pipelineInfo.pViewportState         = &viewportState;
-        pipelineInfo.pRasterizationState    = &rasterizer;
-        pipelineInfo.pMultisampleState      = &multisampling;
-        pipelineInfo.pDepthStencilState     = &depthStencil;
-        pipelineInfo.pColorBlendState       = &colorBlending;
-        pipelineInfo.layout                 = *m_PipelineLayout;
-        pipelineInfo.renderPass             = *m_RenderPass;
-        pipelineInfo.subpass                = 0;
-        pipelineInfo.basePipelineHandle     = VK_NULL_HANDLE;
-
-        if (vkCreateGraphicsPipelines(*m_Device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS)
-            throw std::runtime_error("failed to create graphics pipeline!");
-
+        m_GraphicsPipeline = std::make_shared<GraphicsPipeline>(*m_Device, *m_RenderPass, shaderStage, vertexInput, *m_PipelineLayout, m_Swapchain->GetExtent());
     }
 
     void LoadModel() 
@@ -499,7 +406,7 @@ private:
                 renderPassInfo.pClearValues = clearValues.data();
 
                 m_CommandBuffers[i]->BeginRenderPass(&renderPassInfo,  VK_SUBPASS_CONTENTS_INLINE);
-                    m_CommandBuffers[i]->BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+                    m_CommandBuffers[i]->BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, *m_GraphicsPipeline);
 
                     for (const auto& renderable : m_Renderables)
                     {
@@ -585,7 +492,7 @@ private:
 
         if (result == VK_ERROR_OUT_OF_DATE_KHR) 
         {
-            recreateSwapChain();
+            RecreateSwapChain();
             return;
         } 
         else 
@@ -628,7 +535,7 @@ private:
         if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized) 
         {
             framebufferResized = false;
-            recreateSwapChain();
+            RecreateSwapChain();
         } 
         else 
         if (result != VK_SUCCESS) 
@@ -673,7 +580,7 @@ int main()
     Eternity::Input::Init();
 
     VulkanApp app;
-    app.run();
+    app.Run();
 
     Eternity::DestroyWindow();
 
