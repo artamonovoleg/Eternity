@@ -11,6 +11,23 @@ namespace Eternity
         vkMapMemory(m_Device, m_Memory, 0, size, 0, data);
     }
 
+    std::pair<const VkDescriptorBufferInfo, VkWriteDescriptorSet> UniformBuffer::GetWriteDescriptorSet(uint32_t binding, uint32_t count, VkDeviceSize range, VkDeviceSize offset /* = 0 */)
+    {
+        VkDescriptorBufferInfo bufferInfo{};
+        bufferInfo.buffer   = m_Buffer;
+        bufferInfo.offset   = offset;
+        bufferInfo.range    = range;
+
+        VkWriteDescriptorSet writeDescriptor;
+        writeDescriptor.sType               = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writeDescriptor.dstBinding          = 0;
+        writeDescriptor.dstArrayElement     = 0;
+        writeDescriptor.descriptorType      = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        writeDescriptor.descriptorCount     = 1;
+
+        return std::make_pair(bufferInfo, writeDescriptor);
+    }
+
     VkDescriptorSetLayoutBinding UniformBuffer::GetDescriptorSetLayout(uint32_t binding, uint32_t count)
     {
         VkDescriptorSetLayoutBinding uboLayoutBinding{};

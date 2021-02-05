@@ -144,6 +144,23 @@ namespace Eternity
         ET_TRACE("Sampler created");
     }
 
+    std::pair<const VkDescriptorImageInfo, VkWriteDescriptorSet> Image2D::GetWriteDescriptorSet(uint32_t binding, uint32_t count)
+    {
+        VkDescriptorImageInfo imageInfo{};
+        imageInfo.imageLayout   = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        imageInfo.imageView     = m_ImageView;
+        imageInfo.sampler       = m_Sampler;
+
+        VkWriteDescriptorSet writeDescriptor{};
+        writeDescriptor.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writeDescriptor.dstBinding      = binding;
+        writeDescriptor.dstArrayElement = 0;
+        writeDescriptor.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        writeDescriptor.descriptorCount = count;
+
+        return std::make_pair(imageInfo, writeDescriptor);
+    }
+
     VkDescriptorSetLayoutBinding Image2D::GetDescriptorSetLayout(uint32_t binding, uint32_t count)
     {
         VkDescriptorSetLayoutBinding samplerLayoutBinding{};
@@ -155,4 +172,5 @@ namespace Eternity
 
         return samplerLayoutBinding;
     }
+
 } // namespace Eternity

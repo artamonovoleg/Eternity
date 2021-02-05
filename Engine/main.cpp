@@ -480,33 +480,17 @@ private:
 
         for (size_t i = 0; i < m_Swapchain->GetImageCount(); i++) 
         {
-            VkDescriptorBufferInfo bufferInfo{};
-            bufferInfo.buffer = *m_UniformBuffers[i];
-            bufferInfo.offset = 0;
-            bufferInfo.range = sizeof(UniformBufferObject);
-
-            VkDescriptorImageInfo imageInfo{};
-            imageInfo.imageLayout   = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            imageInfo.imageView     = m_TextureImage->GetImageView();
-            imageInfo.sampler       = m_TextureImage->GetSampler();
-
             std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
 
-            descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrites[0].dstSet = descriptorSets[i];
-            descriptorWrites[0].dstBinding = 0;
-            descriptorWrites[0].dstArrayElement = 0;
-            descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            descriptorWrites[0].descriptorCount = 1;
+            auto [bufferInfo, bufferWrites] = m_UniformBuffers[i]->GetWriteDescriptorSet(0, 1, sizeof(UniformBufferObject));
+            descriptorWrites[0]             = bufferWrites;
+            descriptorWrites[0].dstSet      = descriptorSets[i];
             descriptorWrites[0].pBufferInfo = &bufferInfo;
 
-            descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrites[1].dstSet = descriptorSets[i];
-            descriptorWrites[1].dstBinding = 1;
-            descriptorWrites[1].dstArrayElement = 0;
-            descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            descriptorWrites[1].descriptorCount = 1;
-            descriptorWrites[1].pImageInfo = &imageInfo;
+            auto [imageInfo, imageWrites] = m_TextureImage->GetWriteDescriptorSet(1, 1);
+            descriptorWrites[1]             = imageWrites;
+            descriptorWrites[1].dstSet      = descriptorSets[i];
+            descriptorWrites[1].pImageInfo  = &imageInfo;
 
             vkUpdateDescriptorSets(*m_Device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
         }

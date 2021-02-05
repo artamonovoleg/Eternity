@@ -29,6 +29,7 @@ namespace Eternity
             ~Image2D();
 
             const VkSampler& GetSampler() const { return m_Sampler; };
+            std::pair<const VkDescriptorImageInfo, VkWriteDescriptorSet> GetWriteDescriptorSet(uint32_t binding, uint32_t count);
 
             static VkDescriptorSetLayoutBinding GetDescriptorSetLayout(uint32_t binding, uint32_t count);
     };
