@@ -41,6 +41,7 @@ add_executable(Eternity     main.cpp
                             ./API/Vulkan/Buffer/UniformBuffer.cpp
                             ./API/Vulkan/Buffer/CommandBuffer.cpp
                             ./API/Vulkan/Descriptors.cpp
+                            ./API/Vulkan/DescriptorPool.cpp
                             ./API/Vulkan/DescriptorSets.cpp
                             ./API/Vulkan/Shader.cpp
                             )

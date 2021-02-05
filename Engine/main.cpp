@@ -45,6 +45,7 @@
 #include "CommandBuffer.hpp"
 #include "Shader.hpp"
 #include "Descriptors.hpp"
+#include "DescriptorPool.hpp"
 #include "DescriptorSets.hpp"
 
 const uint32_t WIDTH = 800;

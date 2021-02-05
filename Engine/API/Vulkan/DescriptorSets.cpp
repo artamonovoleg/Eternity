@@ -2,6 +2,7 @@
 #include "Device.hpp"
 #include "Swapchain.hpp"
 #include "Descriptors.hpp"
+#include "DescriptorPool.hpp"
 #include "VkCheck.hpp"
 #include "Base.hpp"
 
