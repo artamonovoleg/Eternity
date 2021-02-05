@@ -172,7 +172,7 @@ private:
     std::shared_ptr<DescriptorSetLayout>            m_DescriptorSetLayout;
     ///
 
-    VkPipelineLayout        pipelineLayout;
+    std::shared_ptr<GraphicsPipelineLayout>         m_PipelineLayout;
     VkPipeline              graphicsPipeline;
 
     std::vector<Vertex>                             vertices;
@@ -241,7 +241,6 @@ private:
     void cleanupSwapChain() 
     {
         vkDestroyPipeline(*m_Device, graphicsPipeline, nullptr);
-        vkDestroyPipelineLayout(*m_Device, pipelineLayout, nullptr);
     }
 
     void cleanup() {
@@ -291,8 +290,10 @@ private:
         m_DescriptorSetLayout = std::make_shared<DescriptorSetLayout>(*m_Device, bindings);
     }
 
-    void createGraphicsPipeline() {
-        
+    void createGraphicsPipeline() 
+    {
+        m_PipelineLayout = std::make_shared<GraphicsPipelineLayout>(*m_Device, *m_DescriptorSetLayout);
+
         Shader vertShader(*m_Device, Shader::Type::Vertex, "../shaders/vert.spv");
         Shader fragShader(*m_Device, Shader::Type::Vertex, "../shaders/frag.spv");
         
@@ -365,14 +366,7 @@ private:
         colorBlending.blendConstants[2] = 0.0f;
         colorBlending.blendConstants[3] = 0.0f;
 
-        VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-        pipelineLayoutInfo.sType            = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        pipelineLayoutInfo.setLayoutCount   = 1;
-        const VkDescriptorSetLayout& layout = *m_DescriptorSetLayout;
-        pipelineLayoutInfo.pSetLayouts = &layout;
 
-        if (vkCreatePipelineLayout(*m_Device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) 
-            throw std::runtime_error("failed to create pipeline layout!");
 
         VkGraphicsPipelineCreateInfo pipelineInfo{};
         pipelineInfo.sType                  = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -385,7 +379,7 @@ private:
         pipelineInfo.pMultisampleState      = &multisampling;
         pipelineInfo.pDepthStencilState     = &depthStencil;
         pipelineInfo.pColorBlendState       = &colorBlending;
-        pipelineInfo.layout                 = pipelineLayout;
+        pipelineInfo.layout                 = *m_PipelineLayout;
         pipelineInfo.renderPass             = *m_RenderPass;
         pipelineInfo.subpass                = 0;
         pipelineInfo.basePipelineHandle     = VK_NULL_HANDLE;
@@ -516,7 +510,7 @@ private:
 
                         vkCmdBindIndexBuffer(*m_CommandBuffers[i], *renderable.m_IndexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
-                        vkCmdBindDescriptorSets(*m_CommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &m_DescriptorSets->GetSet(i), 0, nullptr);
+                        vkCmdBindDescriptorSets(*m_CommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, *m_PipelineLayout, 0, 1, &m_DescriptorSets->GetSet(i), 0, nullptr);
 
                         vkCmdDrawIndexed(*m_CommandBuffers[i], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
                     }

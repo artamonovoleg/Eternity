@@ -43,6 +43,7 @@ add_executable(Eternity     main.cpp
                             ./API/Vulkan/Descriptors.cpp
                             ./API/Vulkan/DescriptorPool.cpp
                             ./API/Vulkan/DescriptorSets.cpp
+                            ./API/Vulkan/GraphicsPipelineLayout.cpp
                             ./API/Vulkan/Shader.cpp
                             )
                             
