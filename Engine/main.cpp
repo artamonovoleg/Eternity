@@ -107,7 +107,7 @@ namespace std
     };
 }
 
-struct UniformBufferObject 
+struct UBOMatrices 
 {
     alignas(16) glm::mat4 model;
     alignas(16) glm::mat4 view;
@@ -354,7 +354,7 @@ private:
         m_UniformBuffers.resize(m_Swapchain->GetImageCount());
 
         for (size_t i = 0; i < m_UniformBuffers.size(); i++) 
-            m_UniformBuffers[i] = std::make_shared<UniformBuffer>(*m_Device, sizeof(UniformBufferObject));
+            m_UniformBuffers[i] = std::make_shared<UniformBuffer>(*m_Device, sizeof(UBOMatrices));
     }
 
     void CreateDescriptorPool() 
@@ -371,7 +371,7 @@ private:
         {
             std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
 
-            descriptorWrites[0]         = m_UniformBuffers[i]->GetWriteDescriptorSet(0, 1, sizeof(UniformBufferObject));
+            descriptorWrites[0]         = m_UniformBuffers[i]->GetWriteDescriptorSet(0, 1, sizeof(UBOMatrices));
             descriptorWrites[0].dstSet  = m_DescriptorSets->GetSet(i);
 
             descriptorWrites[1]         = m_TextureImage->GetWriteDescriptorSet(1, 1);
@@ -458,7 +458,7 @@ private:
         auto currentTime = std::chrono::high_resolution_clock::now();
         float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
-        UniformBufferObject ubo{};
+        UBOMatrices ubo{};
         ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
         ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
         ubo.proj = glm::perspective(glm::radians(45.0f), m_Swapchain->GetExtent().width / (float) m_Swapchain->GetExtent().height, 0.1f, 10.0f);
