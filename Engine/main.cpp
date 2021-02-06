@@ -144,19 +144,15 @@ public:
         // later delete this
         EventSystem::AddListener(EventType::WindowResizeEvent, [&](const Event& event)
         {
-            framebufferResized = true;
-            int width = 0, height = 0;
-            glfwGetFramebufferSize(Eternity::GetWindow(), &width, &height);
-            while (width == 0 || height == 0)
-            {
-                glfwGetFramebufferSize(Eternity::GetWindow(), &width, &height);
+            auto& windowSize = static_cast<const WindowResizeEvent&>(event).GetSize();
+            while (windowSize.width == 0 || windowSize.height == 0)
                 glfwWaitEvents();
-            }
+            RecreateSwapchain(ChooseSwapExtent(windowSize.width, windowSize.height));
         });
     }
 
 private:
-    VkExtent2D ChooseSwapExtent();
+    VkExtent2D ChooseSwapExtent(uint32_t width, uint32_t height);
 
     std::shared_ptr<Instance>                       m_Instance;
     std::shared_ptr<Surface>                        m_Surface;
@@ -188,15 +184,13 @@ private:
     std::vector<VkFence>        imagesInFlight;
     size_t currentFrame = 0;
 
-    bool framebufferResized = false;
-
     void Prepare()
     {
         m_Instance          = std::make_shared<Instance>();
         m_Surface           = std::make_shared<Surface>(*m_Instance);
         m_PhysicalDevice    = std::make_shared<PhysicalDevice>(*m_Instance, *m_Surface);
         m_Device            = std::make_shared<Device>(*m_Instance, *m_PhysicalDevice);
-        m_Swapchain         = std::make_shared<Swapchain>(ChooseSwapExtent(), *m_Device);
+        m_Swapchain         = std::make_shared<Swapchain>(ChooseSwapExtent(Eternity::GetWindowWidth(), Eternity::GetWindowHeight()), *m_Device);
         
         m_DepthImage        = std::make_shared<DepthImage>(*m_Device, m_Swapchain->GetExtent());
 
@@ -245,11 +239,11 @@ private:
         }
     }
 
-    void RecreateSwapChain() 
+    void RecreateSwapchain(const VkExtent2D& extent)
     {
         m_Device->WaitIdle();
 
-        m_Swapchain->Recreate(ChooseSwapExtent());
+        m_Swapchain->Recreate(extent);
 
         m_DepthImage    = std::make_shared<DepthImage>(*m_Device, m_Swapchain->GetExtent());
         CreateRenderPass();
@@ -490,17 +484,6 @@ private:
 
         VkResult result = m_Swapchain->AcquireNextImage(imageAvailableSemaphores[currentFrame], inFlightFences[currentFrame]);
 
-        if (result == VK_ERROR_OUT_OF_DATE_KHR) 
-        {
-            RecreateSwapChain();
-            return;
-        } 
-        else 
-        if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) 
-        {
-            throw std::runtime_error("failed to acquire swap chain image!");
-        }
-
         UpdateUniformBuffer(m_Swapchain->GetActiveImageIndex());
 
         if (imagesInFlight[m_Swapchain->GetActiveImageIndex()] != VK_NULL_HANDLE) 
@@ -532,22 +515,11 @@ private:
 
         result = m_Swapchain->QueuePresent(m_Device->GetQueue(QueueType::Present), renderFinishedSemaphores[currentFrame]);
 
-        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized) 
-        {
-            framebufferResized = false;
-            RecreateSwapChain();
-        } 
-        else 
-        if (result != VK_SUCCESS) 
-        {
-            throw std::runtime_error("failed to present swap chain image!");
-        }
-
         currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
     }
 };
 
-VkExtent2D VulkanApp::ChooseSwapExtent()
+VkExtent2D VulkanApp::ChooseSwapExtent(uint32_t width, uint32_t height)
 {
     VkSurfaceCapabilitiesKHR capabilities {};
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(*m_PhysicalDevice, *m_Surface, &capabilities);
@@ -558,9 +530,6 @@ VkExtent2D VulkanApp::ChooseSwapExtent()
     } 
     else 
     {
-        int width, height;
-        glfwGetFramebufferSize(Eternity::GetWindow(), &width, &height);
-
         VkExtent2D actualExtent = {
             static_cast<uint32_t>(width),
             static_cast<uint32_t>(height)
@@ -572,7 +541,6 @@ VkExtent2D VulkanApp::ChooseSwapExtent()
         return actualExtent;
     }
 }
-
 int main() 
 {
     Eternity::CreateWindow(800, 600, "Eternity");
