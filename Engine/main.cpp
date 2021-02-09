@@ -135,8 +135,6 @@ public:
     {
         Prepare();
         initVulkan();
-        mainLoop();
-        Cleanup();
     }
 
     VulkanApp()
@@ -168,8 +166,6 @@ private:
 
     std::shared_ptr<GraphicsPipelineLayout>         m_PipelineLayout;
     std::shared_ptr<GraphicsPipeline>               m_GraphicsPipeline;
-    std::vector<Vertex>                             vertices;
-    std::vector<uint32_t>                           indices;
 
     std::vector<Renderable>                         m_Renderables;
     std::vector<std::shared_ptr<UniformBuffer>>     m_UniformBuffers;
@@ -210,7 +206,6 @@ private:
     {
         CreateGraphicsPipeline();
         
-        LoadModel();
         CreateUniformBuffers();
         
         CreateDescriptorPool();
@@ -228,9 +223,10 @@ private:
 
         m_Device->WaitIdle();
     }
-
+public:
     void Cleanup() 
     {
+        m_Device->WaitIdle();
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
             vkDestroySemaphore(*m_Device, renderFinishedSemaphores[i], nullptr);
@@ -290,59 +286,19 @@ private:
         m_GraphicsPipeline = std::make_shared<GraphicsPipeline>(*m_Device, *m_RenderPass, shaderStage, vertexInput, *m_PipelineLayout, m_Swapchain->GetExtent());
     }
 
-    void LoadModel() 
+public:
+    void LoadModel(Renderable& model) 
     {
-        static bool once = true;
+        m_Device->WaitIdle();
 
-        if (once)
-        {
-            tinyobj::attrib_t attrib;
-            std::vector<tinyobj::shape_t> shapes;
-            std::vector<tinyobj::material_t> materials;
-            std::string warn, err;
+        m_Renderables.push_back(model);
 
-            if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, MODEL_PATH.c_str())) 
-            {
-                throw std::runtime_error(warn + err);
-            }
+        m_Renderables.back().m_VertexBuffer = CreateVertexBuffer(*m_CommandPool, m_Renderables.back().vertices.data(), sizeof(m_Renderables.back().vertices[0]) * m_Renderables.back().vertices.size());
+        m_Renderables.back().m_IndexBuffer  = CreateIndexBuffer(*m_CommandPool, m_Renderables.back().indices.data(), sizeof(m_Renderables.back().indices[0]) * m_Renderables.back().indices.size());
 
-            std::unordered_map<Vertex, uint32_t> uniqueVertices{};
-
-            for (const auto& shape : shapes) {
-                for (const auto& index : shape.mesh.indices) {
-                    Vertex vertex{};
-
-                    vertex.pos = {
-                        attrib.vertices[3 * index.vertex_index + 0],
-                        attrib.vertices[3 * index.vertex_index + 1],
-                        attrib.vertices[3 * index.vertex_index + 2]
-                    };
-
-                    vertex.texCoord = {
-                        attrib.texcoords[2 * index.texcoord_index + 0],
-                        1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
-                    };
-
-                    if (uniqueVertices.count(vertex) == 0) 
-                    {
-                        uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
-                        vertices.push_back(vertex);
-                    }
-
-                    indices.push_back(uniqueVertices[vertex]);
-                }
-            }
-            once = false;
-        }
-
-        m_Renderables.resize(m_Renderables.size() + 1);
-        m_Renderables.back().m_VertexBuffer = CreateVertexBuffer(*m_CommandPool, vertices.data(), sizeof(vertices[0]) * vertices.size());
-        m_Renderables.back().m_IndexBuffer  = CreateIndexBuffer(*m_CommandPool, indices.data(), sizeof(indices[0]) * indices.size());
-
-        for (auto& i : vertices)
-            i.pos += glm::vec3(0.0f, 1.0f, 0.0f);
+        CreateCommandBuffers();
     }
-
+private:
     void CreateUniformBuffers() 
     {
         m_UniformBuffers.resize(m_Swapchain->GetImageCount());
@@ -413,7 +369,7 @@ private:
 
                         vkCmdBindDescriptorSets(*m_CommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, *m_PipelineLayout, 0, 1, &m_DescriptorSets->GetSet(i), 0, nullptr);
 
-                        vkCmdDrawIndexed(*m_CommandBuffers[i], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+                        vkCmdDrawIndexed(*m_CommandBuffers[i], static_cast<uint32_t>(renderable.indices.size()), 1, 0, 0, 0);
                     }
                 m_CommandBuffers[i]->EndRenderPass();
             m_CommandBuffers[i]->End();
@@ -453,8 +409,10 @@ private:
         float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
         UBOMatrices ubo{};
-        ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-        ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        // ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        ubo.model = glm::mat4(1.0f);
+        // ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        ubo.view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -3.0f));
         ubo.proj = glm::perspective(glm::radians(45.0f), m_Swapchain->GetExtent().width / (float) m_Swapchain->GetExtent().height, 0.1f, 10.0f);
         ubo.proj[1][1] *= -1;
 
@@ -463,24 +421,9 @@ private:
             std::memcpy(data, &ubo, sizeof(ubo));
         m_UniformBuffers[currentImage]->UnmapMemory();
     }
-
-    void drawFrame() {
-
-        if (Input::GetKeyDown(Key::A))
-        {
-            m_Device->WaitIdle();
-            m_Renderables.pop_back();
-            for (auto& i : vertices)
-                i.pos -= glm::vec3(0.0f, 1.0f, 0.0f);
-            CreateCommandBuffers();
-        }
-        else
-        if (Input::GetKeyDown(Key::D))
-        {
-            m_Device->WaitIdle();
-            LoadModel();
-            CreateCommandBuffers();
-        }
+public:
+    void drawFrame() 
+    {
 
         VkResult result = m_Swapchain->AcquireNextImage(imageAvailableSemaphores[currentFrame], inFlightFences[currentFrame]);
 
@@ -541,14 +484,36 @@ VkExtent2D VulkanApp::ChooseSwapExtent(uint32_t width, uint32_t height)
         return actualExtent;
     }
 }
+
 int main() 
 {
     Eternity::CreateWindow(800, 600, "Eternity");
     Eternity::EventSystem::Init();
     Eternity::Input::Init();
 
+    Renderable model;
+
+    auto& vertices = model.vertices;
+    vertices.push_back({ .pos = glm::vec3(-0.5, -0.5, 0.5), .texCoord = glm::vec2(0, 0) });
+    vertices.push_back({ .pos = glm::vec3(0.5, -0.5, 0.5), .texCoord = glm::vec2(0, 0) });
+    vertices.push_back({ .pos = glm::vec3(-0.5, 0.5, 0.5), .texCoord = glm::vec2(0, 0) });
+    vertices.push_back({ .pos = glm::vec3(0.5, 0.5, 0.5), .texCoord = glm::vec2(0, 0) });
+
+    auto& indices = model.indices;
+    indices = std::vector<uint32_t> { 0, 1, 2, 2, 1, 3 };
+
     VulkanApp app;
     app.Run();
+
+    while (!Eternity::WindowShouldClose()) 
+    {
+        if (Input::GetKeyDown(Key::A))
+            app.LoadModel(model);
+        EventSystem::PollEvents();
+        app.drawFrame();
+    }
+
+    app.Cleanup();
 
     Eternity::DestroyWindow();
 
