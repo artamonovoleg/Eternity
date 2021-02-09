@@ -21,7 +21,9 @@ namespace Eternity
 
             void MapMemory(void** data);
             void UnmapMemory();
-
+            
+            VkDeviceSize GetSize() const { return m_Size; }
+            
             operator VkBuffer() { return m_Buffer; }
             operator VkBuffer() const { return m_Buffer; }
     };
