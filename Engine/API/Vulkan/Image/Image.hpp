@@ -15,6 +15,7 @@ namespace Eternity
             VkDeviceMemory          m_Memory;
             VkExtent3D              m_Extent;
             VkFormat                m_Format;
+            uint32_t                m_MipLevels = 1;
 
             void CreateImage(const VkExtent3D& extent, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties);
             void CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);

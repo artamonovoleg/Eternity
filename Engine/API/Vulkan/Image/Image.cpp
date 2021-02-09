@@ -29,7 +29,7 @@ namespace Eternity
         imageInfo.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
         imageInfo.imageType     = VK_IMAGE_TYPE_2D;
         imageInfo.extent        = extent;
-        imageInfo.mipLevels     = 1;
+        imageInfo.mipLevels     = m_MipLevels;
         imageInfo.arrayLayers   = 1;
         imageInfo.format        = format;
         imageInfo.tiling        = tiling;
@@ -64,7 +64,7 @@ namespace Eternity
         viewInfo.format                             = format;
         viewInfo.subresourceRange.aspectMask        = aspectFlags;
         viewInfo.subresourceRange.baseMipLevel      = 0;
-        viewInfo.subresourceRange.levelCount        = 1;
+        viewInfo.subresourceRange.levelCount        = m_MipLevels;
         viewInfo.subresourceRange.baseArrayLayer    = 0;
         viewInfo.subresourceRange.layerCount        = 1;
 

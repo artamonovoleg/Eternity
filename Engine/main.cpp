@@ -51,11 +51,13 @@
 #include "GraphicsPipelineLayout.hpp"
 #include "GraphicsPipeline.hpp"
 
+#include "Camera.hpp"
+
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 
 const std::string MODEL_PATH = "../models/monkey.obj";
-const std::string TEXTURE_PATH = "../textures/ground.jpg";
+const std::string TEXTURE_PATH = "../textures/atlas.png";
 
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
@@ -162,6 +164,11 @@ class VulkanApp
         std::vector<VkFence>        inFlightFences;
         std::vector<VkFence>        imagesInFlight;
         size_t currentFrame = 0;
+
+
+        // ------------------------------------------------------------------------------//
+        std::shared_ptr<Camera>                         m_RenderCamera;
+        // ------------------------------------------------------------------------------//
 
         void Prepare()
         {
@@ -368,8 +375,11 @@ class VulkanApp
 
             UBOMatrices ubo{};
             ubo.model = glm::mat4(1.0f);
-            ubo.view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -5.0f));
-            ubo.proj = glm::perspective(glm::radians(45.0f), m_Swapchain->GetExtent().width / (float) m_Swapchain->GetExtent().height, 0.1f, 10.0f);
+            if (m_RenderCamera != nullptr)
+                ubo.view = m_RenderCamera->GetViewMatrix();
+            else
+                ubo.view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -5.0f));
+            ubo.proj = glm::perspective(glm::radians(45.0f), m_Swapchain->GetExtent().width / (float) m_Swapchain->GetExtent().height, 0.1f, 30.0f);
             ubo.proj[1][1] *= -1;
 
             void* data;
@@ -397,6 +407,11 @@ class VulkanApp
             Cleanup();
         }
         
+        void SetRenderCamera(std::shared_ptr<Camera>& camera)
+        {
+            m_RenderCamera = camera;
+        }
+
         void LoadModel(Renderable& model, size_t& bind) 
         {
             m_Device->WaitIdle();
@@ -484,41 +499,91 @@ VkExtent2D VulkanApp::ChooseSwapExtent(uint32_t width, uint32_t height)
     }
 }
 
+
+// timing
+float deltaTime = 0.0f;	// time between current frame and last frame
+float lastFrame = 0.0f;
+
 int main() 
 {
     Eternity::CreateWindow(800, 600, "Eternity");
     Eternity::EventSystem::Init();
     Eternity::Input::Init();
+    Eternity::Input::SetMouseMode(Eternity::Input::MouseMode::Capture);
 
     Renderable model;
 
     auto& vertices = model.vertices;
-    vertices.push_back({ .pos = glm::vec3(-0.5, -0.5, 0.5), .texCoord = glm::vec2(0, 0) });
+    // front
+    vertices.push_back({ .pos = glm::vec3(-0.5, -0.5, 0.5), .texCoord = glm::vec2(3.0f / 16.0f, 1.0f / 16.0f) });
+    vertices.push_back({ .pos = glm::vec3(0.5, -0.5, 0.5), .texCoord = glm::vec2(4.0f / 16.0f, 1.0f / 16.0f) });
+    vertices.push_back({ .pos = glm::vec3(-0.5, 0.5, 0.5), .texCoord = glm::vec2(3.0f / 16.0f, 0.0f) });
+    vertices.push_back({ .pos = glm::vec3(0.5, 0.5, 0.5), .texCoord = glm::vec2(4.0f / 16.0f, 0.0f) });
+    // right
     vertices.push_back({ .pos = glm::vec3(0.5, -0.5, 0.5), .texCoord = glm::vec2(0, 0) });
-    vertices.push_back({ .pos = glm::vec3(-0.5, 0.5, 0.5), .texCoord = glm::vec2(0, 0) });
+    vertices.push_back({ .pos = glm::vec3(0.5, -0.5, -0.5), .texCoord = glm::vec2(0, 0) });
     vertices.push_back({ .pos = glm::vec3(0.5, 0.5, 0.5), .texCoord = glm::vec2(0, 0) });
+    vertices.push_back({ .pos = glm::vec3(0.5, 0.5, -0.5), .texCoord = glm::vec2(0, 0) });
+
+    // back
+    vertices.push_back({ .pos = glm::vec3(0.5, -0.5, -0.5), .texCoord = glm::vec2(0, 0) });
+    vertices.push_back({ .pos = glm::vec3(-0.5, -0.5, -0.5), .texCoord = glm::vec2(0, 0) });
+    vertices.push_back({ .pos = glm::vec3(0.5, 0.5, -0.5), .texCoord = glm::vec2(0, 0) });
+    vertices.push_back({ .pos = glm::vec3(-0.5, 0.5, -0.5), .texCoord = glm::vec2(0, 0) });
+
+    // left
+    vertices.push_back({ .pos = glm::vec3(-0.5, -0.5, -0.5), .texCoord = glm::vec2(0, 0) });
+    vertices.push_back({ .pos = glm::vec3(-0.5, -0.5, 0.5), .texCoord = glm::vec2(0, 0) });
+    vertices.push_back({ .pos = glm::vec3(-0.5, 0.5, -0.5), .texCoord = glm::vec2(0, 0) });
+    vertices.push_back({ .pos = glm::vec3(-0.5, 0.5, 0.5), .texCoord = glm::vec2(0, 0) });
+
+    // up
+    vertices.push_back({ .pos = glm::vec3(-0.5, 0.5, -0.5), .texCoord = glm::vec2(0, 0) });
+    vertices.push_back({ .pos = glm::vec3(-0.5, 0.5, 0.5), .texCoord = glm::vec2(0, 1.0f / 16.0f) });
+    vertices.push_back({ .pos = glm::vec3(0.5, 0.5, -0.5), .texCoord = glm::vec2(1.0f / 16.0f, 0) });
+    vertices.push_back({ .pos = glm::vec3(0.5, 0.5, 0.5), .texCoord = glm::vec2(1.0f / 16.0f, 1.0f / 16.0f) });
+
+    // down
+    vertices.push_back({ .pos = glm::vec3(0.5, -0.5, -0.5), .texCoord = glm::vec2(0, 0) });
+    vertices.push_back({ .pos = glm::vec3(0.5, -0.5, 0.5), .texCoord = glm::vec2(0, 0) });
+    vertices.push_back({ .pos = glm::vec3(-0.5, -0.5, -0.5), .texCoord = glm::vec2(0, 0) });
+    vertices.push_back({ .pos = glm::vec3(-0.5, -0.5, 0.5), .texCoord = glm::vec2(0, 0) });
 
     auto& indices = model.indices;
-    indices = std::vector<uint32_t> { 0, 1, 2, 2, 1, 3 };
+    indices = std::vector<uint32_t> { 0, 1, 2, 2, 1, 3, 4, 5, 6, 6, 5, 7, 8, 9, 10, 10, 9, 11, 12, 13, 14, 14, 13, 15, 16, 17, 18, 18, 17, 19, 20, 21, 22, 22, 21, 23 };
 
     VulkanApp app;
     
     size_t bind;
 
+    std::shared_ptr<Camera> camera = std::make_shared<Camera>(glm::vec3(0.0f, 0.0f, 3.0f));
+    app.SetRenderCamera(camera);
+
     while (!Eternity::WindowShouldClose()) 
     {
-        if (Input::GetKeyDown(Key::A))
+        // per-frame time logic
+        // --------------------
+        float currentFrame = glfwGetTime();
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
+
+        camera->Update(deltaTime);
+
+        if (Input::GetKeyDown(Key::C))
         {
             app.LoadModel(model, bind);
             for (auto& i : vertices)
                 i.pos.x += 1.0f;
         }
-        if (Input::GetKeyDown(Key::D))
+        
+        if (Input::GetKeyDown(Key::X))
         {
             for (auto& i : vertices)
                 i.pos.x -= 1.0f;
             app.UnloadModel(bind);
+            bind--;
         }
+
         EventSystem::PollEvents();
         app.DrawFrame();
     }

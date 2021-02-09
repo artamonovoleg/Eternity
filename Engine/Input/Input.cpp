@@ -43,7 +43,21 @@ namespace Eternity
         glfwGetCursorPos(Eternity::GetWindow(), &xpos, &ypos);
         return glm::vec3((float)xpos, (float)ypos, 0); 
     }
+
     float       Input::GetMouseScrollDelta() { return mouseScrollDelta; }
+
+    void        Input::SetMouseMode(MouseMode mode)
+    {
+        switch(mode)
+        {
+            case MouseMode::Capture:
+                glfwSetInputMode(Eternity::GetWindow(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+                break;
+            case MouseMode::Free:
+                glfwSetInputMode(Eternity::GetWindow(), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+                break;
+        }
+    }
 
     void Input::Init()
     {

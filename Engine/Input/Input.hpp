@@ -16,6 +16,11 @@ namespace Eternity
             static bool         GetDown(uint16_t code, PressState* buff);
             static bool         GetUp(uint16_t code, PressState* buff);
         public:
+            enum class MouseMode
+            {
+                Capture, Free
+            };
+
             static void         Init();
 
             static bool         GetKey(uint16_t key);
@@ -28,5 +33,6 @@ namespace Eternity
 
             static glm::vec3    GetMousePosition();
             static float        GetMouseScrollDelta();
+            static void         SetMouseMode(MouseMode mode);
     };
 } // namespace Eternity
