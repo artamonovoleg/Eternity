@@ -92,7 +92,7 @@ namespace Eternity
 
         CreateDescriptorSetLayout();
 
-        m_TextureImage = std::make_shared<Image2D>(*m_CommandPool, TEXTURE_PATH, VK_FILTER_LINEAR);
+        m_TextureImage = std::make_shared<Image2D>(*m_CommandPool, TEXTURE_PATH, VK_FILTER_NEAREST);
 
         CreateSyncObjects();
 
