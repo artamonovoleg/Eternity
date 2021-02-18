@@ -1,6 +1,5 @@
 #include <cstring>
 #include <cmath>
-#include <stb_image.h>
 #include "Image2D.hpp"
 #include "CommandPool.hpp"
 #include "CommandBuffer.hpp"
@@ -23,7 +22,7 @@ namespace Eternity
         return m_Extent;
     }
 
-    Image2D::Image2D(const CommandPool& commandPool, const std::string& filename)
+    Image2D::Image2D(const CommandPool& commandPool, const std::string& filename, VkFilter filter /* = VK_FILTER_LINEAR */)
         :   m_CommandPool(commandPool),
             m_Device(commandPool.GetDevice()),
             Image(commandPool.GetDevice(), LoadImage(filename), VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_COLOR_BIT)
@@ -41,8 +40,8 @@ namespace Eternity
             CopyBufferToImage(stageBuff);
         TransitionImageLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-        // GenerateMipmaps(VK_FORMAT_R8G8B8A8_SRGB, m_Extent.width, m_Extent.height, m_MipLevels);
-        CreateSampler();
+        GenerateMipmaps(VK_FORMAT_R8G8B8A8_SRGB, m_Extent.width, m_Extent.height, m_MipLevels);
+        CreateSampler(filter);
     };
 
     Image2D::~Image2D()
@@ -124,15 +123,15 @@ namespace Eternity
         m_CommandPool.EndSingleTimeCommands(commandBuffer);
     }
 
-    void Image2D::CreateSampler()
+    void Image2D::CreateSampler(VkFilter filter)
     {
         VkPhysicalDeviceProperties properties{};
         vkGetPhysicalDeviceProperties(m_Device.GetPhysicalDevice(), &properties);
 
         VkSamplerCreateInfo samplerInfo{};
         samplerInfo.sType                   = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-        samplerInfo.magFilter               = VK_FILTER_LINEAR;
-        samplerInfo.minFilter               = VK_FILTER_LINEAR;
+        samplerInfo.magFilter               = filter;
+        samplerInfo.minFilter               = filter;
         samplerInfo.addressModeU            = VK_SAMPLER_ADDRESS_MODE_REPEAT;
         samplerInfo.addressModeV            = VK_SAMPLER_ADDRESS_MODE_REPEAT;
         samplerInfo.addressModeW            = VK_SAMPLER_ADDRESS_MODE_REPEAT;

@@ -22,6 +22,7 @@ include_directories(${VENDORS}
 add_definitions(-DET_DEBUG)
 
 add_executable(Eternity     main.cpp
+                            VulkanApp.cpp
                             ./Core/Window.cpp
                             ./Events/EventSystem.cpp
                             ./Input/Input.cpp
