@@ -6,7 +6,7 @@
 #include "../Eternity.hpp"
 #include "Block.hpp"
 
-static const int chunkSize = 16;
+static const int chunkSize = 6;
 
 class ChunkData
 {
@@ -24,11 +24,21 @@ class ChunkData
 class Chunk : public Eternity::Renderable
 {
     private:
-        glm::ivec3              m_Pos;
+        glm::vec3               m_Pos;
         const int               m_Size = chunkSize;
         ChunkData               m_ChunkData;
+        std::vector<Vertex>&    m_Vertices;
+        std::vector<uint32_t>&  m_Indices;
 
-        void GenerateBlocks();
+        void PushLeft(const glm::vec3& pos);
+        void PushRight(const glm::vec3& pos);
+        void PushBottom(const glm::vec3& pos);
+        void PushTop(const glm::vec3& pos);
+        void PushBack(const glm::vec3& pos);
+        void PushFront(const glm::vec3& pos);
+
+        void PushIndices();
+        void GenerateMesh();
     public:
         Chunk(glm::ivec3 pos);
 };
