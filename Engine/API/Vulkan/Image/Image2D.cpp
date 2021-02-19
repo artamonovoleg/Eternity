@@ -18,7 +18,7 @@ namespace Eternity
         m_ImageSize = texWidth * texHeight * 4;
         ET_ASSERT(m_Pixels);
         m_Extent = { static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight), 1 };
-        m_MipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
+        // m_MipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
         return m_Extent;
     }
 
@@ -40,7 +40,7 @@ namespace Eternity
             CopyBufferToImage(stageBuff);
         TransitionImageLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-        GenerateMipmaps(VK_FORMAT_R8G8B8A8_SRGB, m_Extent.width, m_Extent.height, m_MipLevels);
+        // GenerateMipmaps(VK_FORMAT_R8G8B8A8_SRGB, m_Extent.width, m_Extent.height, m_MipLevels);
         CreateSampler(filter);
     };
 
