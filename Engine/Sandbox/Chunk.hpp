@@ -100,4 +100,14 @@ class Chunk : public Eternity::Renderable
         void GenerateMesh();
     public:
         Chunk(glm::ivec3 pos);
+
+        void TestBlockDig()
+        {
+            static int i = 0;
+            m_ChunkData.At({ m_Size / 2 - i, m_Size - 1, m_Size / 2 - i }).type = Block::Type::Air;
+            m_Vertices.clear();
+            m_Indices.clear();
+            GenerateMesh();
+            i--;
+        }
 };

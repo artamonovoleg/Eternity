@@ -32,6 +32,13 @@ int main()
 
         camera->Update(deltaTime);
 
+        if (Eternity::Input::GetKeyDown(Key::X))
+        {
+            chunk.TestBlockDig();
+            app.UnloadModel(bind);
+            app.LoadModel(chunk, bind);
+        }
+
         EventSystem::PollEvents();
         app.DrawFrame();
     }

@@ -19,7 +19,7 @@ include_directories(${VENDORS}
                     ./Input
                     ./Utils)
 
-# add_definitions(-DET_DEBUG)
+add_definitions(-DET_DEBUG)
 
 add_executable(Eternity     main.cpp
                             VulkanApp.cpp
