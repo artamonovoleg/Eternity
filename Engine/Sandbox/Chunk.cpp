@@ -4,6 +4,7 @@
 Chunk::Chunk(glm::ivec3 pos)
     : m_Vertices(vertices), m_Indices(indices), m_Pos(pos)
 {
+    GenerateLandscape();
 	GenerateMesh();
 }
 
@@ -19,10 +20,10 @@ void Chunk::PushLeft(const glm::vec3& pos)
 
 void Chunk::PushRight(const glm::vec3& pos)
 {
-    m_Vertices.push_back({ .pos = glm::vec3(0.5, -0.5, -0.5)    + m_Pos + pos, .texCoord = glm::vec2(3.0f / 16.0f, 1.0f / 16.0f) });
-    m_Vertices.push_back({ .pos = glm::vec3(-0.5, -0.5, -0.5)   + m_Pos + pos, .texCoord = glm::vec2(4.0f / 16.0f, 1.0f / 16.0f) });
-    m_Vertices.push_back({ .pos = glm::vec3(0.5, 0.5, -0.5)     + m_Pos + pos, .texCoord = glm::vec2(3.0f / 16.0f, 0.0f) });
-    m_Vertices.push_back({ .pos = glm::vec3(-0.5, 0.5, -0.5)    + m_Pos + pos, .texCoord = glm::vec2(4.0f / 16.0f, 0.0f) });
+    m_Vertices.push_back({ .pos = glm::vec3(0.5, -0.5, 0.5)    + m_Pos + pos, .texCoord = glm::vec2(3.0f / 16.0f, 1.0f / 16.0f) });
+    m_Vertices.push_back({ .pos = glm::vec3(0.5, -0.5, -0.5)   + m_Pos + pos, .texCoord = glm::vec2(4.0f / 16.0f, 1.0f / 16.0f) });
+    m_Vertices.push_back({ .pos = glm::vec3(0.5, 0.5, 0.5)     + m_Pos + pos, .texCoord = glm::vec2(3.0f / 16.0f, 0.0f) });
+    m_Vertices.push_back({ .pos = glm::vec3(0.5, 0.5, -0.5)    + m_Pos + pos, .texCoord = glm::vec2(4.0f / 16.0f, 0.0f) });
 
     PushIndices();
 }
@@ -77,21 +78,37 @@ void Chunk::PushIndices()
     m_Indices.insert(m_Indices.end(), { 0 + m, 1 + m, 2 + m, 2 + m, 1 + m, 3 + m });
 }
 
-void Chunk::GenerateMesh()
+void Chunk::GenerateLandscape()
 {
-    
     for (int z = 0; z < m_Size; z++)
     {
         for (int y = 0; y < m_Size; y++)
         {
             for (int x = 0; x < m_Size; x++)
             {
-                PushLeft({x, y, z});
-                PushRight({x, y, z});
-                PushBack({x, y, z});
-                PushFront({x, y, z});
-                PushBottom({x, y, z});
-                PushTop({x, y, z});
+                m_ChunkData.At({x, y, z}).type = Block::Type::TopGround;
+            }
+        }
+    }
+}
+
+void Chunk::GenerateMesh()
+{
+    for (int z = 0; z < m_Size; z++)
+    {
+        for (int y = 0; y < m_Size; y++)
+        {
+            for (int x = 0; x < m_Size; x++)
+            {
+                if (m_ChunkData.At({x, y, z}).type != Block::Type::Air)
+                {
+                    PushLeft({x, y, z});
+                    PushRight({x, y, z});
+                    PushBack({x, y, z});
+                    PushFront({x, y, z});
+                    PushBottom({x, y, z});
+                    PushTop({x, y, z});
+                }
             }
         }
     }
