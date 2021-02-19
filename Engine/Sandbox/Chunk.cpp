@@ -102,12 +102,18 @@ void Chunk::GenerateMesh()
             {
                 if (m_ChunkData.At({x, y, z}).type != Block::Type::Air)
                 {
-                    PushLeft({x, y, z});
-                    PushRight({x, y, z});
-                    PushBack({x, y, z});
-                    PushFront({x, y, z});
-                    PushBottom({x, y, z});
-                    PushTop({x, y, z});
+                    if (m_ChunkData.LeftType({ x, y, z }) == Block::Type::Air)
+                        PushLeft({ x, y, z });
+                    if (m_ChunkData.RightType({ x, y, z }) == Block::Type::Air)
+                        PushRight({ x, y, z });
+                    if (m_ChunkData.BackType({ x, y, z }) == Block::Type::Air)
+                        PushBack({ x, y, z });
+                    if (m_ChunkData.FrontType({ x, y, z }) == Block::Type::Air)
+                        PushFront({x, y, z });
+                    if (m_ChunkData.BottomType({ x, y, z }) == Block::Type::Air)
+                        PushBottom({ x, y, z });
+                    if (m_ChunkData.TopType({ x, y, z }) == Block::Type::Air)
+                        PushTop({ x, y, z });
                 }
             }
         }

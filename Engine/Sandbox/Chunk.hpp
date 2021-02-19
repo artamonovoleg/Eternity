@@ -24,6 +24,54 @@ class ChunkData
         {
             return m_Data.at(((pos.x * m_Size * m_Size) + (pos.y * m_Size) + pos.z));
         }
+
+        const Block::Type LeftType(const glm::ivec3& pos) const
+        {
+            if (pos.x == 0)
+                return Block::Type::Air;
+            else
+                return At({ pos.x - 1, pos.y, pos.z }).type;
+        };
+
+        const Block::Type RightType(const glm::ivec3& pos) const
+        {
+            if (pos.x == m_Size - 1)
+                return Block::Type::Air;
+            else
+                return At({ pos.x + 1, pos.y, pos.z }).type;
+        }
+
+        const Block::Type BottomType(const glm::ivec3& pos) const
+        {
+            if (pos.y == 0)
+                return Block::Type::Air;
+            else
+                return At({ pos.x, pos.y - 1, pos.z }).type;
+        }
+
+        const Block::Type TopType(const glm::ivec3& pos) const
+        {
+            if (pos.y == m_Size - 1)
+                return Block::Type::Air;
+            else
+                return At({ pos.x, pos.y + 1, pos.z }).type;
+        }
+
+        const Block::Type BackType(const glm::ivec3& pos) const
+        {
+            if (pos.z == 0)
+                return Block::Type::Air;
+            else
+                return At({ pos.x, pos.y, pos.z - 1 }).type;
+        }
+
+        const Block::Type FrontType(const glm::ivec3& pos) const
+        {
+            if (pos.z == m_Size - 1)
+                return Block::Type::Air;
+            else
+                return At({ pos.x, pos.y, pos.z + 1 }).type;
+        }
 };
 
 class Chunk : public Eternity::Renderable
