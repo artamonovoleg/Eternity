@@ -98,6 +98,8 @@ class Chunk : public Eternity::Renderable
         void GenerateLandscape();
         /// Push all vertices and indices
         void GenerateMesh();
+
+        bool needUpdate = false;
     public:
         Chunk(glm::ivec3 pos);
 

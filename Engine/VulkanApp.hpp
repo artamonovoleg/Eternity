@@ -85,8 +85,8 @@ namespace Eternity
             ~VulkanApp();
             
             void SetRenderCamera(std::shared_ptr<Camera>& camera);
-            void LoadModel(Renderable& model, size_t& bind);
-            void UnloadModel(size_t bind);
+            void LoadModel(Renderable& model);
+            void UnloadModel(Renderable& model);
             void DrawFrame();
     };
 }

@@ -63,7 +63,7 @@ namespace Eternity
         m_RenderCamera = camera;
     }
 
-    void VulkanApp::LoadModel(Renderable& model, size_t& bind) 
+    void VulkanApp::LoadModel(Renderable& model) 
     {
         m_Device->WaitIdle();
         
@@ -72,7 +72,7 @@ namespace Eternity
 
         CreateCommandBuffers();
 
-        bind = m_VertexBuffers.size() - 1;
+        model.bind = m_VertexBuffers.size() - 1;
     }
 
     void VulkanApp::Prepare()
@@ -292,14 +292,14 @@ namespace Eternity
         m_UniformBuffers[currentImage]->UnmapMemory();
     }
 
-    void VulkanApp::UnloadModel(size_t bind)
+    void VulkanApp::UnloadModel(Renderable& model)
     {
-        if (m_VertexBuffers.empty() || bind > m_VertexBuffers.size() - 1)
+        if (m_VertexBuffers.empty() || model.bind > m_VertexBuffers.size() - 1)
             return;
         m_Device->WaitIdle();
 
-        m_VertexBuffers.erase(m_VertexBuffers.begin() + bind);
-        m_IndexBuffers.erase(m_IndexBuffers.begin() + bind);
+        m_VertexBuffers.erase(m_VertexBuffers.begin() + model.bind);
+        m_IndexBuffers.erase(m_IndexBuffers.begin() + model.bind);
 
         CreateCommandBuffers();
     }

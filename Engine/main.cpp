@@ -18,9 +18,9 @@ int main()
     std::shared_ptr<Camera> camera = std::make_shared<Camera>(glm::vec3(0.0f, 0.0f, 3.0f));
     app.SetRenderCamera(camera);
 
-    size_t bind;
     Chunk chunk(glm::vec3(0, 0, 0));
-    app.LoadModel(chunk, bind);
+
+    app.LoadModel(chunk);
 
     while (!Eternity::WindowShouldClose()) 
     {
@@ -35,8 +35,8 @@ int main()
         if (Eternity::Input::GetKeyDown(Key::X))
         {
             chunk.TestBlockDig();
-            app.UnloadModel(bind);
-            app.LoadModel(chunk, bind);
+            app.UnloadModel(chunk);
+            app.LoadModel(chunk);
         }
 
         EventSystem::PollEvents();

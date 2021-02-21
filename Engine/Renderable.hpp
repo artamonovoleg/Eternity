@@ -81,5 +81,7 @@ namespace Eternity
             std::shared_ptr<Buffer>                         m_IndexBuffer;
 
             std::vector<std::shared_ptr<UniformBuffer>>     m_UniformBuffers;
+
+            size_t bind;
     };
 }
